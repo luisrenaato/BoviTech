@@ -598,6 +598,8 @@ main {
 
     display: flex;
 
+    flex-wrap: wrap;
+
     align-items: flex-start;
 
     justify-content: space-between;
@@ -605,6 +607,71 @@ main {
     gap: 15px;
 
     margin-bottom: 15px;
+
+}
+
+
+.view-toggle {
+
+    display: flex;
+
+    flex-shrink: 0;
+
+    border: 1px solid var(--line);
+
+    border-radius: 8px;
+
+    overflow: hidden;
+
+    background: var(--paper-card);
+
+}
+
+
+.view-toggle-btn {
+
+    padding: 6px 11px;
+
+    border: 0;
+
+    background: transparent;
+
+    color: var(--muted);
+
+    font-size: 10px;
+
+    font-weight: bold;
+
+    letter-spacing: .03em;
+
+    white-space: nowrap;
+
+    cursor: pointer;
+
+    transition: .15s;
+
+}
+
+
+.view-toggle-btn + .view-toggle-btn {
+
+    border-left: 1px solid var(--line);
+
+}
+
+
+.view-toggle-btn:hover {
+
+    background: rgba(82,107,68,.12);
+
+}
+
+
+.view-toggle-btn.active {
+
+    background: var(--green);
+
+    color: #fffaf0;
 
 }
 
