@@ -69,6 +69,24 @@ let currentFilterColumn = "";
 let currentFilterValue = "";
 
 
+/*
+   Modo de visualização de cada gráfico.
+
+   Guardado por uma "chave" estável (nome da coluna,
+   ou uma chave fixa como "overview_main"), e não pelo
+   id do canvas, já que os ids são recriados a cada
+   atualização dos dados.
+*/
+
+let chartViewModes = {};
+
+const CHART_VIEW_LABELS = {
+    bar: "Barras",
+    line: "Linhas",
+    points: "Pontos"
+};
+
+
 /* =========================================================
    INICIALIZAÇÃO
 ========================================================= */
@@ -82,6 +100,8 @@ document.addEventListener(
         setupFilters();
 
         setupStatistics();
+
+        setupViewToggles();
 
         await loadData();
 
@@ -747,6 +767,236 @@ function clearFilters() {
 
 
 /* =========================================================
+   MODO DE VISUALIZAÇÃO DOS GRÁFICOS
+   (Barras / Linhas / Pontos)
+========================================================= */
+
+function getChartMode(key) {
+
+    return chartViewModes[key] || "bar";
+
+}
+
+
+function buildViewToggle(key) {
+
+    const current =
+        getChartMode(key);
+
+    const buttons =
+        Object.keys(CHART_VIEW_LABELS)
+            .map(type => {
+
+                const active =
+                    type === current
+                        ? " active"
+                        : "";
+
+                return (
+                    '<button type="button" class="view-toggle-btn' +
+                    active +
+                    '" data-type="' +
+                    type +
+                    '">' +
+                    CHART_VIEW_LABELS[type] +
+                    "</button>"
+                );
+
+            })
+            .join("");
+
+    return (
+        '<div class="view-toggle" data-chart-key="' +
+        key +
+        '">' +
+        buttons +
+        "</div>"
+    );
+
+}
+
+
+function wireViewToggle(
+    toggleElement,
+    onChange
+) {
+
+    if (!toggleElement) {
+        return;
+    }
+
+    const key =
+        toggleElement.dataset.chartKey;
+
+
+    toggleElement
+        .querySelectorAll("button")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => {
+
+                    const type =
+                        button.dataset.type;
+
+                    if (getChartMode(key) === type) {
+                        return;
+                    }
+
+                    chartViewModes[key] = type;
+
+                    toggleElement
+                        .querySelectorAll("button")
+                        .forEach(btn =>
+                            btn.classList.toggle(
+                                "active",
+                                btn === button
+                            )
+                        );
+
+                    onChange(type);
+
+                }
+            );
+
+        });
+
+}
+
+
+function setupViewToggles() {
+
+    const overviewHeading =
+        document.getElementById(
+            "overviewChartHeading"
+        );
+
+    if (overviewHeading) {
+
+        overviewHeading.insertAdjacentHTML(
+            "beforeend",
+            buildViewToggle("overview_main")
+        );
+
+        wireViewToggle(
+            overviewHeading.querySelector(".view-toggle"),
+            () =>
+                renderVerticalChart(
+                    "mainCategoryChart",
+                    findBestCategoricalColumn(),
+                    12,
+                    "overview_main"
+                )
+        );
+
+    }
+
+
+    const histogramHeading =
+        document.getElementById(
+            "histogramChartHeading"
+        );
+
+    if (histogramHeading) {
+
+        histogramHeading.insertAdjacentHTML(
+            "beforeend",
+            buildViewToggle("histogram")
+        );
+
+        wireViewToggle(
+            histogramHeading.querySelector(".view-toggle"),
+            () => {
+
+                const column =
+                    document.getElementById(
+                        "statVariable"
+                    ).value;
+
+                if (column) {
+
+                    renderHistogram(
+                        getNumericValues(column)
+                    );
+
+                }
+
+            }
+        );
+
+    }
+
+}
+
+
+/*
+   Monta o "dataset" do Chart.js de acordo com o modo
+   escolhido (barras, linhas ou pontos), mantendo os
+   mesmos eixos e o mesmo tooltip para os três modos.
+*/
+
+function buildChartDataset(
+    mode,
+    label,
+    data
+) {
+
+    const green = "#526b44";
+    const greenDark = "#354831";
+
+
+    if (mode === "line") {
+
+        return {
+            type: "line",
+            label,
+            data,
+            fill: true,
+            tension: .3,
+            borderWidth: 2,
+            borderColor: green,
+            backgroundColor: "rgba(82,107,68,.18)",
+            pointBackgroundColor: greenDark,
+            pointBorderColor: greenDark,
+            pointRadius: 4
+        };
+
+    }
+
+
+    if (mode === "points") {
+
+        return {
+            type: "line",
+            label,
+            data,
+            showLine: false,
+            borderWidth: 0,
+            pointBackgroundColor: greenDark,
+            pointBorderColor: greenDark,
+            pointRadius: 6,
+            pointHoverRadius: 8
+        };
+
+    }
+
+
+    return {
+        type: "bar",
+        label,
+        data,
+        backgroundColor: "rgba(82,107,68,.82)",
+        borderColor: greenDark,
+        borderWidth: 1,
+        borderRadius: 5,
+        maxBarThickness: 55
+    };
+
+}
+
+
+/* =========================================================
    VISÃO GERAL
 ========================================================= */
 
@@ -806,7 +1056,8 @@ function renderOverview() {
         renderVerticalChart(
             "mainCategoryChart",
             categoryColumn,
-            12
+            12,
+            "overview_main"
         );
 
     }
@@ -1046,6 +1297,8 @@ function renderCategoryPage(
 
                                 </div>
 
+                                ${buildViewToggle(column)}
+
                             </div>
 
                             <div class="chart-container">
@@ -1070,24 +1323,48 @@ function renderCategoryPage(
         .forEach(
             (column, index) => {
 
-                const canvases =
+                const cards =
                     container
                         .querySelectorAll(
-                            "canvas"
+                            ".paper-card"
                         );
 
+                const card =
+                    cards[index];
 
-                if (
-                    canvases[index]
-                ) {
+                if (!card) {
+                    return;
+                }
 
-                    renderVerticalChart(
-                        canvases[index].id,
-                        column,
-                        12
+
+                const canvas =
+                    card.querySelector(
+                        "canvas"
                     );
 
+                if (!canvas) {
+                    return;
                 }
+
+
+                renderVerticalChart(
+                    canvas.id,
+                    column,
+                    12
+                );
+
+
+                wireViewToggle(
+                    card.querySelector(
+                        ".view-toggle"
+                    ),
+                    () =>
+                        renderVerticalChart(
+                            canvas.id,
+                            column,
+                            12
+                        )
+                );
 
             }
         );
@@ -1102,7 +1379,8 @@ function renderCategoryPage(
 function renderVerticalChart(
     canvasId,
     column,
-    maxCategories = 12
+    maxCategories = 12,
+    viewKey = column
 ) {
 
     const canvas =
@@ -1173,40 +1451,32 @@ function renderVerticalChart(
         );
 
 
+    const mode =
+        getChartMode(
+            viewKey
+        );
+
+    const dataset =
+        buildChartDataset(
+            mode,
+            "Respostas",
+            data
+        );
+
+
     charts[canvasId] =
         new Chart(
             canvas,
             {
 
-                type: "bar",
+                type: dataset.type,
 
                 data: {
 
                     labels,
 
                     datasets: [
-
-                        {
-
-                            label:
-                                "Respostas",
-
-                            data,
-
-                            backgroundColor:
-                                "rgba(82, 107, 68, .82)",
-
-                            borderColor:
-                                "#354831",
-
-                            borderWidth: 1,
-
-                            borderRadius: 5,
-
-                            maxBarThickness: 55
-
-                        }
-
+                        dataset
                     ]
 
                 },
@@ -1773,6 +2043,12 @@ function renderHistogram(
     );
 
 
+    const mode =
+        getChartMode(
+            "histogram"
+        );
+
+
     const min =
         Math.min(...values);
 
@@ -1783,12 +2059,20 @@ function renderHistogram(
 
     if (min === max) {
 
+        const singleDataset =
+            buildChartDataset(
+                mode,
+                "Frequência",
+                [values.length]
+            );
+
+
         charts.histogramChart =
             new Chart(
                 canvas,
                 {
 
-                    type: "bar",
+                    type: singleDataset.type,
 
                     data: {
 
@@ -1797,19 +2081,7 @@ function renderHistogram(
                         ],
 
                         datasets: [
-                            {
-                                data: [
-                                    values.length
-                                ],
-
-                                backgroundColor:
-                                    "rgba(82,107,68,.82)",
-
-                                borderColor:
-                                    "#354831",
-
-                                borderWidth: 1
-                            }
+                            singleDataset
                         ]
 
                     },
@@ -1915,41 +2187,35 @@ function renderHistogram(
         );
 
 
+    const histogramDataset =
+        buildChartDataset(
+            mode,
+            "Frequência",
+            counts
+        );
+
+
+    if (histogramDataset.type === "bar") {
+
+        histogramDataset.categoryPercentage = 1;
+        histogramDataset.barPercentage = 1;
+
+    }
+
+
     charts.histogramChart =
         new Chart(
             canvas,
             {
 
-                type: "bar",
+                type: histogramDataset.type,
 
                 data: {
 
                     labels,
 
                     datasets: [
-
-                        {
-
-                            label:
-                                "Frequência",
-
-                            data:
-                                counts,
-
-                            backgroundColor:
-                                "rgba(82,107,68,.72)",
-
-                            borderColor:
-                                "#354831",
-
-                            borderWidth: 1,
-
-                            categoryPercentage: 1,
-
-                            barPercentage: 1
-
-                        }
-
+                        histogramDataset
                     ]
 
                 },
