@@ -82,8 +82,11 @@ let chartViewModes = {};
 
 const CHART_VIEW_LABELS = {
     bar: "Barras",
+    pie: "Setores",
+    points: "Pontos",
     line: "Linhas",
-    points: "Pontos"
+    ogive: "Ogiva",
+    boxplot: "Boxplot"
 };
 
 
@@ -931,19 +934,55 @@ function setupViewToggles() {
 
 
 /*
-   Monta o "dataset" do Chart.js de acordo com o modo
-   escolhido (barras, linhas ou pontos), mantendo os
-   mesmos eixos e o mesmo tooltip para os três modos.
+   Paleta usada nos "Setores" (pizza). Cicla pelos tons
+   oficiais da marca e algumas variações derivadas, então
+   funciona bem mesmo com muitas categorias.
+*/
+
+const BRAND_PALETTE = [
+    "#0F3D2E",
+    "#4E6B4A",
+    "#5B4636",
+    "#9C8F7D",
+    "#7C9174",
+    "#2F5C46",
+    "#8A6F53",
+    "#3E2E22",
+    "#B7AA92",
+    "#6B8564",
+    "#78573F",
+    "#D8CBB3"
+];
+
+
+function buildPalette(count) {
+
+    return Array.from(
+        { length: count },
+        (_, index) =>
+            BRAND_PALETTE[
+                index % BRAND_PALETTE.length
+            ]
+    );
+
+}
+
+
+/*
+   Monta o "dataset" do Chart.js para os modos cartesianos
+   (Barras / Linhas / Pontos). "options.noGap" remove o
+   espaçamento entre barras — usado no histograma.
 */
 
 function buildChartDataset(
     mode,
     label,
-    data
+    data,
+    options = {}
 ) {
 
-    const green = "#526b44";
-    const greenDark = "#354831";
+    const moss = "#4E6B4A";
+    const forest = "#0F3D2E";
 
 
     if (mode === "line") {
@@ -955,10 +994,10 @@ function buildChartDataset(
             fill: true,
             tension: .3,
             borderWidth: 2,
-            borderColor: green,
-            backgroundColor: "rgba(82,107,68,.18)",
-            pointBackgroundColor: greenDark,
-            pointBorderColor: greenDark,
+            borderColor: moss,
+            backgroundColor: "rgba(78,107,74,.18)",
+            pointBackgroundColor: forest,
+            pointBorderColor: forest,
             pointRadius: 4
         };
 
@@ -973,8 +1012,8 @@ function buildChartDataset(
             data,
             showLine: false,
             borderWidth: 0,
-            pointBackgroundColor: greenDark,
-            pointBorderColor: greenDark,
+            pointBackgroundColor: forest,
+            pointBorderColor: forest,
             pointRadius: 6,
             pointHoverRadius: 8
         };
@@ -982,16 +1021,637 @@ function buildChartDataset(
     }
 
 
-    return {
+    const dataset = {
         type: "bar",
         label,
         data,
-        backgroundColor: "rgba(82,107,68,.82)",
-        borderColor: greenDark,
+        backgroundColor: "rgba(78,107,74,.82)",
+        borderColor: forest,
         borderWidth: 1,
         borderRadius: 5,
         maxBarThickness: 55
     };
+
+
+    if (options.noGap) {
+
+        dataset.categoryPercentage = 1;
+        dataset.barPercentage = 1;
+        dataset.borderRadius = 2;
+
+    }
+
+
+    return dataset;
+
+}
+
+
+/*
+   Dataset da Ogiva: a mesma série, só que acumulada —
+   por isso a ordenação correta das categorias (feita em
+   sortChartEntries) é essencial para esse modo fazer sentido.
+*/
+
+function buildOgiveDataset(data, label) {
+
+    let running = 0;
+
+    const cumulative =
+        data.map(
+            value => (running += value)
+        );
+
+    return {
+        type: "line",
+        label: label + " acumuladas",
+        data: cumulative,
+        fill: true,
+        tension: 0,
+        borderWidth: 2,
+        borderColor: "#5B4636",
+        backgroundColor: "rgba(91,70,54,.15)",
+        pointBackgroundColor: "#3E2E22",
+        pointBorderColor: "#3E2E22",
+        pointRadius: 4
+    };
+
+}
+
+
+/*
+   Config completa do Chart.js para os modos cartesianos
+   (Barras / Linhas / Pontos / Ogiva) — todos compartilham
+   o mesmo eixo de categorias e o mesmo tooltip.
+*/
+
+function buildCartesianConfig(
+    labels,
+    dataset,
+    total,
+    tooltipUnit
+) {
+
+    return {
+
+        type: dataset.type,
+
+        data: {
+            labels,
+            datasets: [dataset]
+        },
+
+        plugins: [ChartDataLabels],
+
+        options: {
+
+            responsive: true,
+
+            maintainAspectRatio: false,
+
+            layout: {
+                padding: {
+                    top: 30,
+                    left: 10,
+                    right: 10,
+                    bottom: 10
+                }
+            },
+
+            plugins: {
+
+                legend: {
+                    display: false
+                },
+
+                tooltip: {
+                    callbacks: {
+                        label: context => {
+
+                            const value =
+                                context.raw;
+
+                            const percentage =
+                                total
+                                    ? (
+                                        value /
+                                        total *
+                                        100
+                                    ).toFixed(1)
+                                    : 0;
+
+                            return (
+                                " " +
+                                value +
+                                " " +
+                                tooltipUnit +
+                                " (" +
+                                percentage +
+                                "%)"
+                            );
+
+                        }
+                    }
+                },
+
+                datalabels: {
+                    anchor: "end",
+                    align: "top",
+                    color: "#3E2E22",
+                    font: {
+                        weight: "bold",
+                        size: 11
+                    },
+                    formatter: value => value
+                }
+
+            },
+
+            scales: {
+
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        color: "#5B4636",
+                        font: { size: 10 },
+                        maxRotation: 45,
+                        minRotation: 0
+                    }
+                },
+
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0,
+                        color: "#756C5E"
+                    },
+                    grid: {
+                        color: "rgba(91,70,54,.12)"
+                    }
+                }
+
+            }
+
+        }
+
+    };
+
+}
+
+
+/*
+   Config do Chart.js para os "Setores" (pizza) — sem
+   eixos, com legenda e rótulos em porcentagem.
+*/
+
+function buildPieConfig(
+    labels,
+    data,
+    datasetLabel,
+    total,
+    tooltipUnit
+) {
+
+    return {
+
+        type: "pie",
+
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: datasetLabel,
+                    data,
+                    backgroundColor:
+                        buildPalette(data.length),
+                    borderColor: "#FFFFFF",
+                    borderWidth: 2
+                }
+            ]
+        },
+
+        plugins: [ChartDataLabels],
+
+        options: {
+
+            responsive: true,
+
+            maintainAspectRatio: false,
+
+            plugins: {
+
+                legend: {
+                    display: true,
+                    position: "right",
+                    labels: {
+                        color: "#5B4636",
+                        boxWidth: 12,
+                        font: { size: 10 }
+                    }
+                },
+
+                tooltip: {
+                    callbacks: {
+                        label: context => {
+
+                            const value =
+                                context.raw;
+
+                            const percentage =
+                                total
+                                    ? (
+                                        value /
+                                        total *
+                                        100
+                                    ).toFixed(1)
+                                    : 0;
+
+                            return (
+                                " " +
+                                context.label +
+                                ": " +
+                                value +
+                                " " +
+                                tooltipUnit +
+                                " (" +
+                                percentage +
+                                "%)"
+                            );
+
+                        }
+                    }
+                },
+
+                datalabels: {
+                    color: "#FFFFFF",
+                    textStrokeColor: "rgba(35,38,31,.45)",
+                    textStrokeWidth: 2,
+                    font: { weight: "bold", size: 11 },
+                    formatter: value => {
+
+                        const percentage =
+                            total
+                                ? Math.round(
+                                    value / total * 100
+                                )
+                                : 0;
+
+                        return percentage + "%";
+
+                    }
+                }
+
+            }
+
+        }
+
+    };
+
+}
+
+
+/*
+   Monta o HTML do boxplot a partir de {min,q1,median,q3,max,outliers}.
+   Reaproveitado tanto pela página de Estatística quanto pelo
+   modo "Boxplot" disponível em cada gráfico.
+*/
+
+function buildBoxplotMarkup(stats, note = "") {
+
+    const noteHTML =
+        note
+            ? `<div class="boxplot-note">${note}</div>`
+            : "";
+
+
+    const range =
+        stats.max - stats.min;
+
+
+    if (range === 0) {
+
+        return `
+
+            <div class="boxplot-wrapper">
+
+                <div class="boxplot-axis"></div>
+
+                <div
+                    class="boxplot-box"
+                    style="left:50%;width:0;"
+                ></div>
+
+                <div
+                    class="boxplot-median"
+                    style="left:50%;"
+                ></div>
+
+                <div
+                    class="boxplot-label"
+                    style="left:50%;"
+                >
+                    ${formatNumber(stats.median)}
+                </div>
+
+            </div>
+
+            ${noteHTML}
+
+        `;
+
+    }
+
+
+    const position =
+        value =>
+            5 +
+            ((value - stats.min) / range) * 90;
+
+
+    const minPos = position(stats.min);
+    const q1Pos = position(stats.q1);
+    const medPos = position(stats.median);
+    const q3Pos = position(stats.q3);
+    const maxPos = position(stats.max);
+
+    const boxLeft = q1Pos;
+    const boxWidth = q3Pos - q1Pos;
+    const whiskerLeft = minPos;
+    const whiskerWidth = maxPos - minPos;
+
+
+    let outliersHTML = "";
+
+    stats.outliers.forEach(
+        value => {
+
+            outliersHTML += `
+                <div
+                    class="boxplot-outlier"
+                    style="left:${position(value)}%;"
+                    title="Outlier: ${formatNumber(value)}"
+                ></div>
+            `;
+
+        }
+    );
+
+
+    return `
+
+        <div class="boxplot-wrapper">
+
+            <div class="boxplot-axis"></div>
+
+            <div
+                class="boxplot-line"
+                style="left:${whiskerLeft}%;width:${whiskerWidth}%;"
+            ></div>
+
+            <div class="boxplot-whisker" style="left:${minPos}%;"></div>
+            <div class="boxplot-whisker" style="left:${maxPos}%;"></div>
+
+            <div
+                class="boxplot-box"
+                style="left:${boxLeft}%;width:${boxWidth}%;"
+            ></div>
+
+            <div class="boxplot-median" style="left:${medPos}%;"></div>
+
+            ${outliersHTML}
+
+            <div class="boxplot-label" style="left:${minPos}%;">
+                Min<br>${formatNumber(stats.min)}
+            </div>
+
+            <div class="boxplot-label" style="left:${q1Pos}%;">
+                Q1<br>${formatNumber(stats.q1)}
+            </div>
+
+            <div class="boxplot-label" style="left:${medPos}%;">
+                Med<br>${formatNumber(stats.median)}
+            </div>
+
+            <div class="boxplot-label" style="left:${q3Pos}%;">
+                Q3<br>${formatNumber(stats.q3)}
+            </div>
+
+            <div class="boxplot-label" style="left:${maxPos}%;">
+                Max<br>${formatNumber(stats.max)}
+            </div>
+
+        </div>
+
+        ${noteHTML}
+
+    `;
+
+}
+
+
+/*
+   Despachante único: recebe {labels, data} de QUALQUER
+   gráfico (categórico ou histograma) e desenha o modo
+   escolhido — Barras, Setores, Pontos, Linhas, Ogiva ou
+   Boxplot — trocando entre <canvas> e o boxplot inline.
+*/
+
+function renderChartByMode({
+    container,
+    canvasId,
+    mode,
+    labels,
+    data,
+    total,
+    datasetLabel,
+    tooltipUnit,
+    noGap = false
+}) {
+
+    const canvas =
+        document.getElementById(canvasId);
+
+    if (!canvas) {
+        return;
+    }
+
+    const boxDiv =
+        container.querySelector(".inline-boxplot");
+
+
+    destroyChart(canvasId);
+
+
+    if (mode === "boxplot") {
+
+        canvas.classList.add("chart-hidden");
+        container.classList.add("boxplot-active");
+
+        if (boxDiv) {
+
+            boxDiv.classList.add("active");
+
+            const stats =
+                calculateStatistics(data);
+
+            boxDiv.innerHTML =
+                buildBoxplotMarkup(
+                    stats,
+                    "Resumo estatístico dos valores deste gráfico (mín, Q1, mediana, Q3, máx)."
+                );
+
+        }
+
+        return;
+
+    }
+
+
+    canvas.classList.remove("chart-hidden");
+    container.classList.remove("boxplot-active");
+
+    if (boxDiv) {
+        boxDiv.classList.remove("active");
+    }
+
+
+    if (mode === "pie") {
+
+        charts[canvasId] =
+            new Chart(
+                canvas,
+                buildPieConfig(
+                    labels,
+                    data,
+                    datasetLabel,
+                    total,
+                    tooltipUnit
+                )
+            );
+
+        return;
+
+    }
+
+
+    const dataset =
+        mode === "ogive"
+            ? buildOgiveDataset(data, datasetLabel)
+            : buildChartDataset(
+                mode,
+                datasetLabel,
+                data,
+                { noGap }
+            );
+
+
+    charts[canvasId] =
+        new Chart(
+            canvas,
+            buildCartesianConfig(
+                labels,
+                dataset,
+                total,
+                tooltipUnit
+            )
+        );
+
+}
+
+
+/*
+   Detecta se os rótulos de um gráfico são faixas
+   numéricas ("10-50", "51-100", "501+"...) e, se forem,
+   reordena pelo valor da faixa em vez da frequência —
+   assim a Ogiva e a leitura geral fazem sentido.
+*/
+
+function extractFirstNumber(text) {
+
+    const match =
+        text.match(
+            /\d{1,3}(?:\.\d{3})+|\d+(?:,\d+)?/
+        );
+
+    if (!match) {
+        return null;
+    }
+
+    let raw = match[0];
+
+    if (raw.includes(".")) {
+        raw = raw.replace(/\./g, "");
+    } else {
+        raw = raw.replace(",", ".");
+    }
+
+    const value = Number(raw);
+
+    return Number.isFinite(value) ? value : null;
+
+}
+
+
+function parseOrdinalKey(label) {
+
+    const text = normalize(label);
+
+    const number = extractFirstNumber(text);
+
+    if (number === null) {
+        return null;
+    }
+
+    const isLowerBound =
+        /\b(mais de|acima de|superior a|ou mais)\b/.test(text) ||
+        /\+\s*$/.test(text.trim());
+
+    const isUpperBound =
+        /\b(menos de|ate|abaixo de|inferior a)\b/.test(text);
+
+    if (isLowerBound) {
+        return number + .5;
+    }
+
+    if (isUpperBound) {
+        return number - .5;
+    }
+
+    return number;
+
+}
+
+
+function sortChartEntries(entries) {
+
+    if (entries.length < 2) {
+        return entries;
+    }
+
+    const keys =
+        entries.map(
+            ([label]) => parseOrdinalKey(label)
+        );
+
+    const parsedCount =
+        keys.filter(key => key !== null).length;
+
+    const looksOrdinal =
+        parsedCount === entries.length;
+
+    if (!looksOrdinal) {
+        return entries;
+    }
+
+    return entries
+        .map((entry, index) => ({
+            entry,
+            key: keys[index]
+        }))
+        .sort((a, b) => a.key - b.key)
+        .map(item => item.entry);
 
 }
 
@@ -1307,6 +1967,8 @@ function renderCategoryPage(
                                     id="${id}"
                                 ></canvas>
 
+                                <div class="inline-boxplot"></div>
+
                             </div>
 
                         </div>
@@ -1393,10 +2055,8 @@ function renderVerticalChart(
         return;
     }
 
-
-    destroyChart(
-        canvasId
-    );
+    const container =
+        canvas.parentElement;
 
 
     const counts =
@@ -1428,6 +2088,12 @@ function renderVerticalChart(
     }
 
 
+    entries =
+        sortChartEntries(
+            entries
+        );
+
+
     const labels =
         entries.map(
             entry =>
@@ -1456,172 +2122,17 @@ function renderVerticalChart(
             viewKey
         );
 
-    const dataset =
-        buildChartDataset(
-            mode,
-            "Respostas",
-            data
-        );
 
-
-    charts[canvasId] =
-        new Chart(
-            canvas,
-            {
-
-                type: dataset.type,
-
-                data: {
-
-                    labels,
-
-                    datasets: [
-                        dataset
-                    ]
-
-                },
-
-
-                plugins: [
-                    ChartDataLabels
-                ],
-
-
-                options: {
-
-                    responsive: true,
-
-                    maintainAspectRatio: false,
-
-                    layout: {
-
-                        padding: {
-                            top: 30,
-                            left: 10,
-                            right: 10,
-                            bottom: 10
-                        }
-
-                    },
-
-
-                    plugins: {
-
-                        legend: {
-                            display: false
-                        },
-
-
-                        tooltip: {
-
-                            callbacks: {
-
-                                label:
-                                    context => {
-
-                                        const value =
-                                            context.raw;
-
-
-                                        const percentage =
-                                            total
-                                                ? (
-                                                    value /
-                                                    total *
-                                                    100
-                                                ).toFixed(1)
-                                                : 0;
-
-
-                                        return (
-                                            " " +
-                                            value +
-                                            " respostas (" +
-                                            percentage +
-                                            "%)"
-                                        );
-
-                                    }
-
-                            }
-
-                        },
-
-
-                        datalabels: {
-
-                            anchor: "end",
-
-                            align: "top",
-
-                            color: "#39291e",
-
-                            font: {
-                                weight: "bold",
-                                size: 11
-                            },
-
-                            formatter:
-                                value =>
-                                    value
-
-                        }
-
-                    },
-
-
-                    scales: {
-
-                        x: {
-
-                            grid: {
-                                display: false
-                            },
-
-                            ticks: {
-
-                                color: "#5a402c",
-
-                                font: {
-                                    size: 10
-                                },
-
-                                maxRotation: 45,
-
-                                minRotation: 0
-
-                            }
-
-                        },
-
-
-                        y: {
-
-                            beginAtZero: true,
-
-                            ticks: {
-
-                                precision: 0,
-
-                                color: "#776d60"
-
-                            },
-
-                            grid: {
-
-                                color:
-                                    "rgba(90,64,44,.12)"
-
-                            }
-
-                        }
-
-                    }
-
-                }
-
-            }
-        );
+    renderChartByMode({
+        container,
+        canvasId,
+        mode,
+        labels,
+        data,
+        total,
+        datasetLabel: "Respostas",
+        tooltipUnit: "respostas"
+    });
 
 }
 
@@ -2037,10 +2548,8 @@ function renderHistogram(
         return;
     }
 
-
-    destroyChart(
-        "histogramChart"
-    );
+    const container =
+        canvas.parentElement;
 
 
     const mode =
@@ -2057,203 +2566,105 @@ function renderHistogram(
         Math.max(...values);
 
 
+    let labels;
+    let counts;
+
+
     if (min === max) {
 
-        const singleDataset =
-            buildChartDataset(
-                mode,
-                "Frequência",
-                [values.length]
-            );
+        labels = [String(min)];
+        counts = [values.length];
 
+    } else {
 
-        charts.histogramChart =
-            new Chart(
-                canvas,
-                {
-
-                    type: singleDataset.type,
-
-                    data: {
-
-                        labels: [
-                            String(min)
-                        ],
-
-                        datasets: [
-                            singleDataset
-                        ]
-
-                    },
-
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: false
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    precision: 0
-                                }
-                            }
-                        }
-                    }
-
-                }
-            );
-
-        return;
-
-    }
-
-
-    const bins =
-        Math.min(
-            10,
-            Math.max(
-                5,
-                Math.ceil(
-                    Math.sqrt(
-                        values.length
+        const bins =
+            Math.min(
+                10,
+                Math.max(
+                    5,
+                    Math.ceil(
+                        Math.sqrt(
+                            values.length
+                        )
                     )
                 )
-            )
-        );
+            );
 
 
-    const width =
-        (max - min) /
-        bins;
+        const width =
+            (max - min) /
+            bins;
 
 
-    const counts =
-        new Array(bins)
-            .fill(0);
+        counts =
+            new Array(bins)
+                .fill(0);
 
 
-    values.forEach(
-        value => {
+        values.forEach(
+            value => {
 
-            let index =
-                Math.floor(
-                    (value - min) /
-                    width
-                );
-
-
-            if (
-                index >= bins
-            ) {
-
-                index =
-                    bins - 1;
-
-            }
+                let index =
+                    Math.floor(
+                        (value - min) /
+                        width
+                    );
 
 
-            counts[index]++;
+                if (
+                    index >= bins
+                ) {
 
-        }
-    );
+                    index =
+                        bins - 1;
 
-
-    const labels =
-        counts.map(
-            (_, index) => {
-
-                const start =
-                    min +
-                    index *
-                    width;
+                }
 
 
-                const end =
-                    start +
-                    width;
-
-
-                return (
-                    formatNumber(start) +
-                    " – " +
-                    formatNumber(end)
-                );
+                counts[index]++;
 
             }
         );
 
 
-    const histogramDataset =
-        buildChartDataset(
-            mode,
-            "Frequência",
-            counts
-        );
+        labels =
+            counts.map(
+                (_, index) => {
+
+                    const start =
+                        min +
+                        index *
+                        width;
 
 
-    if (histogramDataset.type === "bar") {
+                    const end =
+                        start +
+                        width;
 
-        histogramDataset.categoryPercentage = 1;
-        histogramDataset.barPercentage = 1;
+
+                    return (
+                        formatNumber(start) +
+                        " – " +
+                        formatNumber(end)
+                    );
+
+                }
+            );
 
     }
 
 
-    charts.histogramChart =
-        new Chart(
-            canvas,
-            {
-
-                type: histogramDataset.type,
-
-                data: {
-
-                    labels,
-
-                    datasets: [
-                        histogramDataset
-                    ]
-
-                },
-
-
-                options: {
-
-                    responsive: true,
-
-                    maintainAspectRatio: false,
-
-                    plugins: {
-
-                        legend: {
-                            display: false
-                        }
-
-                    },
-
-
-                    scales: {
-
-                        y: {
-
-                            beginAtZero: true,
-
-                            ticks: {
-                                precision: 0
-                            }
-
-                        }
-
-                    }
-
-                }
-
-            }
-        );
+    renderChartByMode({
+        container,
+        canvasId: "histogramChart",
+        mode,
+        labels,
+        data: counts,
+        total: values.length,
+        datasetLabel: "Frequência",
+        tooltipUnit: "respostas",
+        noGap: true
+    });
 
 }
 
@@ -2278,233 +2689,10 @@ function renderBoxplot(
     }
 
 
-    const range =
-        stats.max -
-        stats.min;
-
-
-    if (range === 0) {
-
-        container.innerHTML = `
-
-            <div class="boxplot-wrapper">
-
-                <div class="boxplot-axis"></div>
-
-                <div
-                    class="boxplot-box"
-                    style="
-                        left:50%;
-                        width:0;
-                    "
-                ></div>
-
-                <div
-                    class="boxplot-median"
-                    style="
-                        left:50%;
-                    "
-                ></div>
-
-                <div
-                    class="boxplot-label"
-                    style="
-                        left:50%;
-                    "
-                >
-                    ${formatNumber(stats.median)}
-                </div>
-
-            </div>
-
-        `;
-
-        return;
-
-    }
-
-
-    const position =
-        value =>
-            5 +
-            (
-                (
-                    value -
-                    stats.min
-                ) /
-                range
-            ) *
-            90;
-
-
-    const minPos =
-        position(stats.min);
-
-
-    const q1Pos =
-        position(stats.q1);
-
-
-    const medPos =
-        position(stats.median);
-
-
-    const q3Pos =
-        position(stats.q3);
-
-
-    const maxPos =
-        position(stats.max);
-
-
-    const boxLeft =
-        q1Pos;
-
-
-    const boxWidth =
-        q3Pos -
-        q1Pos;
-
-
-    const whiskerLeft =
-        minPos;
-
-
-    const whiskerWidth =
-        maxPos -
-        minPos;
-
-
-    let outliersHTML = "";
-
-
-    stats.outliers.forEach(
-        value => {
-
-            outliersHTML += `
-
-                <div
-                    class="boxplot-outlier"
-                    style="
-                        left:${position(value)}%;
-                    "
-                    title="Outlier: ${formatNumber(value)}"
-                ></div>
-
-            `;
-
-        }
-    );
-
-
-    container.innerHTML = `
-
-        <div class="boxplot-wrapper">
-
-            <div class="boxplot-axis"></div>
-
-            <div
-                class="boxplot-line"
-                style="
-                    left:${whiskerLeft}%;
-                    width:${whiskerWidth}%;
-                "
-            ></div>
-
-
-            <div
-                class="boxplot-whisker"
-                style="
-                    left:${minPos}%;
-                "
-            ></div>
-
-
-            <div
-                class="boxplot-whisker"
-                style="
-                    left:${maxPos}%;
-                "
-            ></div>
-
-
-            <div
-                class="boxplot-box"
-                style="
-                    left:${boxLeft}%;
-                    width:${boxWidth}%;
-                "
-            ></div>
-
-
-            <div
-                class="boxplot-median"
-                style="
-                    left:${medPos}%;
-                "
-            ></div>
-
-
-            ${outliersHTML}
-
-
-            <div
-                class="boxplot-label"
-                style="
-                    left:${minPos}%;
-                "
-            >
-                Min<br>
-                ${formatNumber(stats.min)}
-            </div>
-
-
-            <div
-                class="boxplot-label"
-                style="
-                    left:${q1Pos}%;
-                "
-            >
-                Q1<br>
-                ${formatNumber(stats.q1)}
-            </div>
-
-
-            <div
-                class="boxplot-label"
-                style="
-                    left:${medPos}%;
-                "
-            >
-                Med<br>
-                ${formatNumber(stats.median)}
-            </div>
-
-
-            <div
-                class="boxplot-label"
-                style="
-                    left:${q3Pos}%;
-                "
-            >
-                Q3<br>
-                ${formatNumber(stats.q3)}
-            </div>
-
-
-            <div
-                class="boxplot-label"
-                style="
-                    left:${maxPos}%;
-                "
-            >
-                Max<br>
-                ${formatNumber(stats.max)}
-            </div>
-
-        </div>
-
-    `;
+    container.innerHTML =
+        buildBoxplotMarkup(
+            stats
+        );
 
 }
 
