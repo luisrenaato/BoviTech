@@ -1,22 +1,49 @@
 :root {
 
-    --paper: #eee3cc;
-    --paper-light: #f8f0df;
-    --paper-card: #fffaf0;
+    /* ---------------------------------------------------
+       Paleta oficial BoviTech
+    --------------------------------------------------- */
 
-    --coffee: #5a402c;
-    --coffee-dark: #39291e;
+    --forest: #0F3D2E;      /* Verde Floresta */
+    --moss: #4E6B4A;        /* Verde Moss     */
+    --earth: #5B4636;       /* Marrom Terra   */
+    --taupe: #9C8F7D;       /* Taupe          */
+    --sand: #EDE7D9;        /* Areia          */
 
-    --green: #526b44;
-    --green-dark: #354831;
-    --green-light: #82936e;
+    --font-brand:
+        "Montserrat",
+        "Segoe UI",
+        Arial,
+        sans-serif;
 
-    --ink: #302b24;
-    --muted: #776d60;
 
-    --line: #cdbb9b;
+    /* ---------------------------------------------------
+       Papéis / fundos (derivados da Areia)
+    --------------------------------------------------- */
 
-    --shadow: rgba(55, 45, 32, .14);
+    --paper: var(--sand);
+    --paper-light: #F5F0E5;
+    --paper-card: #FFFFFF;
+
+
+    /* ---------------------------------------------------
+       Mapeamento das variáveis usadas no restante do CSS
+       para os tons oficiais da marca.
+    --------------------------------------------------- */
+
+    --coffee: var(--earth);
+    --coffee-dark: #3E2E22;
+
+    --green: var(--moss);
+    --green-dark: var(--forest);
+    --green-light: #7C9174;
+
+    --ink: #23261F;
+    --muted: #756C5E;
+
+    --line: #DCD2C0;
+
+    --shadow: rgba(15, 61, 46, .12);
 
 }
 
@@ -37,22 +64,19 @@ body {
 
     color: var(--ink);
 
-    font-family:
-        Arial,
-        Helvetica,
-        sans-serif;
+    font-family: var(--font-brand);
 
     background-color: var(--paper);
 
     background-image:
         radial-gradient(
             ellipse at 15% 20%,
-            rgba(110, 75, 40, .10),
+            rgba(91, 70, 54, .09),
             transparent 25%
         ),
         radial-gradient(
             ellipse at 80% 70%,
-            rgba(75, 100, 60, .08),
+            rgba(15, 61, 46, .08),
             transparent 25%
         );
 
@@ -75,44 +99,97 @@ body {
     width: 280px;
     height: 100vh;
 
-    padding: 28px 21px;
+    padding: 30px 22px;
 
-    color: #f7efde;
+    color: var(--sand);
 
     background:
         linear-gradient(
             180deg,
-            #3b2a20,
-            #2f241c
+            #124130,
+            var(--forest)
         );
 
-    border-right: 5px solid var(--green);
+    border-right: 4px solid var(--moss);
 
     overflow-y: auto;
 
 }
 
 
+.brand {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+}
+
+
+.brand-mark {
+
+    flex-shrink: 0;
+
+    width: 46px;
+
+    height: 46px;
+
+    color: var(--sand);
+
+}
+
+
+.brand-mark svg {
+
+    width: 100%;
+
+    height: 100%;
+
+    display: block;
+
+    /* engrossa levemente o traço do logo em tamanho pequeno */
+    stroke: currentColor;
+
+    stroke-width: 3.5;
+
+    stroke-linejoin: round;
+
+}
+
+
 .brand-title {
 
-    font-family: Georgia, serif;
+    font-family: var(--font-brand);
 
-    font-weight: bold;
+    font-weight: 800;
 
-    font-size: 20px;
+    font-size: 19px;
+
+    letter-spacing: .01em;
+
+    color: var(--sand);
+
+}
+
+
+.brand-title .accent {
+
+    color: var(--taupe);
 
 }
 
 
 .brand-subtitle {
 
-    margin-top: 5px;
+    margin-top: 14px;
 
-    color: rgba(255,255,255,.55);
+    color: rgba(237,231,217,.62);
 
     font-size: 12px;
 
-    line-height: 1.4;
+    line-height: 1.5;
 
 }
 
@@ -234,7 +311,7 @@ body {
 
     border-radius: 7px;
 
-    background: #fffaf0;
+    background: var(--paper-card);
 
     color: var(--ink);
 
@@ -290,7 +367,7 @@ body {
 
     margin-top: 4px;
 
-    color: #eee3cc;
+    color: var(--sand);
 
     font-size: 11px;
 
@@ -326,19 +403,19 @@ main {
 
     overflow: hidden;
 
-    border: 2px solid var(--green);
+    border: 1px solid var(--line);
 
     border-radius: 22px;
 
     background:
         linear-gradient(
             135deg,
-            rgba(255,250,240,.94),
-            rgba(235,224,199,.86)
+            #FFFFFF,
+            var(--paper-light)
         );
 
     box-shadow:
-        7px 7px 0 var(--shadow);
+        0 18px 40px var(--shadow);
 
 }
 
@@ -349,11 +426,11 @@ main {
 
     position: absolute;
 
-    inset: 11px;
+    inset: 10px;
 
-    border: 1px dashed rgba(82,107,68,.45);
+    border: 1px solid rgba(15,61,46,.14);
 
-    border-radius: 15px;
+    border-radius: 16px;
 
     pointer-events: none;
 
@@ -375,9 +452,9 @@ main {
 
     font-size: 10px;
 
-    font-weight: bold;
+    font-weight: 700;
 
-    letter-spacing: .2em;
+    letter-spacing: .22em;
 
 }
 
@@ -386,9 +463,13 @@ main {
 
     margin: 8px 0;
 
-    font-family: Georgia, serif;
+    font-family: var(--font-brand);
 
-    color: var(--coffee);
+    font-weight: 800;
+
+    letter-spacing: -.01em;
+
+    color: var(--green-dark);
 
     font-size: clamp(32px, 4vw, 48px);
 
@@ -414,13 +495,28 @@ main {
 
     z-index: 1;
 
-    right: 55px;
+    right: 25px;
 
-    bottom: 25px;
+    bottom: -15px;
 
-    font-size: 105px;
+    width: 220px;
 
-    opacity: .19;
+    height: 220px;
+
+    color: var(--forest);
+
+    opacity: .07;
+
+}
+
+
+.cow svg {
+
+    width: 100%;
+
+    height: 100%;
+
+    display: block;
 
 }
 
@@ -456,7 +552,11 @@ main {
 
     margin: 0;
 
-    font-family: Georgia, serif;
+    font-family: var(--font-brand);
+
+    font-weight: 700;
+
+    letter-spacing: -.01em;
 
     color: var(--coffee);
 
@@ -502,9 +602,9 @@ main {
 
     border-radius: 12px;
 
-    background: rgba(255,250,240,.87);
+    background: var(--paper-card);
 
-    box-shadow: 4px 4px 0 var(--shadow);
+    box-shadow: 0 10px 22px var(--shadow);
 
 }
 
@@ -515,7 +615,7 @@ main {
 
     font-size: 9px;
 
-    font-weight: bold;
+    font-weight: 700;
 
     letter-spacing: .08em;
 
@@ -530,9 +630,11 @@ main {
 
     overflow: hidden;
 
-    color: var(--coffee);
+    color: var(--green-dark);
 
-    font-family: Georgia, serif;
+    font-family: var(--font-brand);
+
+    font-weight: 800;
 
     font-size: 24px;
 
@@ -580,9 +682,20 @@ main {
 
     border-radius: 15px;
 
-    background: rgba(255,250,240,.88);
+    background: var(--paper-card);
 
-    box-shadow: 5px 5px 0 var(--shadow);
+    box-shadow: 0 8px 20px var(--shadow);
+
+    transition: transform .18s ease, box-shadow .18s ease;
+
+}
+
+
+.paper-card:hover {
+
+    transform: translateY(-2px);
+
+    box-shadow: 0 14px 28px var(--shadow);
 
 }
 
@@ -615,6 +728,8 @@ main {
 
     display: flex;
 
+    flex-wrap: wrap;
+
     flex-shrink: 0;
 
     border: 1px solid var(--line);
@@ -630,7 +745,7 @@ main {
 
 .view-toggle-btn {
 
-    padding: 6px 11px;
+    padding: 6px 9px;
 
     border: 0;
 
@@ -638,11 +753,11 @@ main {
 
     color: var(--muted);
 
-    font-size: 10px;
+    font-size: 9px;
 
     font-weight: bold;
 
-    letter-spacing: .03em;
+    letter-spacing: .02em;
 
     white-space: nowrap;
 
@@ -662,7 +777,7 @@ main {
 
 .view-toggle-btn:hover {
 
-    background: rgba(82,107,68,.12);
+    background: rgba(78,107,74,.12);
 
 }
 
@@ -671,7 +786,7 @@ main {
 
     background: var(--green);
 
-    color: #fffaf0;
+    color: #FFFFFF;
 
 }
 
@@ -682,7 +797,7 @@ main {
 
     color: var(--coffee);
 
-    font-family: Georgia, serif;
+    font-family: var(--font-brand);
 
     font-size: 19px;
 
@@ -724,6 +839,53 @@ main {
 }
 
 
+.chart-container canvas.chart-hidden {
+
+    display: none;
+
+}
+
+
+.inline-boxplot {
+
+    display: none;
+
+    width: 100%;
+
+}
+
+
+.inline-boxplot.active {
+
+    display: block;
+
+}
+
+
+.chart-container.boxplot-active {
+
+    height: auto;
+
+    min-height: 380px;
+
+}
+
+
+.boxplot-note {
+
+    margin-top: 10px;
+
+    padding: 0 25px;
+
+    color: var(--muted);
+
+    font-size: 11px;
+
+    font-style: italic;
+
+}
+
+
 /* =========================================================
    RESUMO
 ========================================================= */
@@ -752,7 +914,7 @@ main {
 
     border-left: 4px solid var(--green);
 
-    background: #eee3cc;
+    background: var(--paper);
 
 }
 
@@ -768,7 +930,7 @@ main {
 
     color: var(--coffee);
 
-    font-family: Georgia, serif;
+    font-family: var(--font-brand);
 
 }
 
@@ -804,7 +966,7 @@ main {
 
     color: var(--ink);
 
-    background: #fffaf0;
+    background: var(--paper-card);
 
 }
 
@@ -855,7 +1017,7 @@ main {
 
     color: var(--coffee);
 
-    font-family: Georgia, serif;
+    font-family: var(--font-brand);
 
     font-size: 21px;
 
@@ -932,7 +1094,7 @@ main {
 
     border-radius: 5px;
 
-    background: rgba(82,107,68,.28);
+    background: rgba(78,107,74,.28);
 
 }
 
@@ -1074,7 +1236,7 @@ tr:nth-child(even) td {
 
     margin-bottom: 5px;
 
-    font-family: Georgia, serif;
+    font-family: var(--font-brand);
 
 }
 
