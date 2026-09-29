@@ -263,11 +263,15 @@ async function loadData() {
         }
 
 
-        headers =
-            parsed[0]
-                .map(
-                    cleanHeader
-                );
+        /*
+           Lê TODOS os cabeçalhos da planilha, mas descarta a
+           coluna de e-mail (dado pessoal) antes de montar os
+           dados. Os índices continuam sendo lidos de
+           "allHeaders", então o mapeamento permanece correto.
+        */
+
+        const allHeaders =
+            parsed[0].map(cleanHeader);
 
 
         allData =
@@ -283,8 +287,12 @@ async function loadData() {
 
                     const object = {};
 
-                    headers.forEach(
+                    allHeaders.forEach(
                         (header, index) => {
+
+                            if (isEmailColumn(header)) {
+                                return;
+                            }
 
                             object[header] =
                                 row[index] ??
@@ -296,6 +304,13 @@ async function loadData() {
                     return object;
 
                 });
+
+
+        headers =
+            allHeaders.filter(
+                header =>
+                    !isEmailColumn(header)
+            );
 
 
         filteredData =
@@ -771,7 +786,7 @@ function clearFilters() {
 
 /* =========================================================
    MODO DE VISUALIZAÇÃO DOS GRÁFICOS
-   (Barras / Linhas / Pontos)
+   (Barras / Setores / Pontos / Linhas / Ogiva / Boxplot)
 ========================================================= */
 
 function getChartMode(key) {
@@ -3323,6 +3338,28 @@ function isTimestamp(
         text.includes("carimbo") ||
         text.includes("timestamp") ||
         text.includes("data e hora")
+    );
+
+}
+
+
+/*
+   Identifica a coluna de e-mail criada automaticamente pelo
+   Google Forms ("Endereço de e-mail"). Ela é descartada em
+   loadData() para nunca aparecer no dashboard.
+*/
+
+function isEmailColumn(
+    header
+) {
+
+    const text =
+        normalize(header);
+
+
+    return (
+        text.includes("e-mail") ||
+        text.includes("email")
     );
 
 }
