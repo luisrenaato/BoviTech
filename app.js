@@ -798,11 +798,24 @@ function getChartMode(key) {
 
 function buildViewToggle(key) {
 
+    const canUseBoxplot =
+        key &&
+        getNumericColumns().includes(key);
+
+    if (!canUseBoxplot) {
+        chartViewModes[key] = "bar";
+    }
+
     const current =
-        getChartMode(key);
+        canUseBoxplot
+            ? getChartMode(key)
+            : "bar";
 
     const buttons =
         Object.keys(CHART_VIEW_LABELS)
+            .filter(type =>
+                type !== "boxplot" || canUseBoxplot
+            )
             .map(type => {
 
                 const active =
@@ -2137,14 +2150,25 @@ function renderVerticalChart(
             viewKey
         );
 
+    const boxplotData =
+        mode === "boxplot"
+            ? getNumericValues(column)
+            : data;
+
 
     renderChartByMode({
         container,
         canvasId,
         mode,
-        labels,
-        data,
-        total,
+        labels:
+            mode === "boxplot"
+                ? boxplotData
+                : labels,
+        data: boxplotData,
+        total:
+            mode === "boxplot"
+                ? boxplotData.length
+                : total,
         datasetLabel: "Respostas",
         tooltipUnit: "respostas"
     });
@@ -3001,29 +3025,36 @@ function getNumericColumns() {
             }
 
 
-            const values =
+            const nonEmptyValues =
                 allData
                     .map(
                         row =>
-                            parseNumber(
-                                row[column]
-                            )
+                            String(
+                                row[column] ?? ""
+                            ).trim()
                     )
                     .filter(
                         value =>
-                            value !== null
+                            value !== ""
                     );
 
 
-            if (!values.length) {
+            if (!nonEmptyValues.length) {
                 return false;
             }
 
 
+            const numericValues =
+                nonEmptyValues.filter(
+                    value =>
+                        parseNumber(value) !== null
+                );
+
+
             return (
-                values.length /
-                allData.length
-            ) >= .5;
+                numericValues.length /
+                nonEmptyValues.length
+            ) >= .8;
 
         }
     );
@@ -3139,78 +3170,72 @@ function parseNumber(
     }
 
 
-    text =
+    const normalized =
         text
             .replace(
                 /R\$/gi,
                 ""
             )
             .replace(
-                /kg/gi,
-                ""
+                /°C/gi,
+                " "
             )
             .replace(
-                /ha/gi,
-                ""
+                /kg|ha|%|cm|m|mm|l|litros?/gi,
+                " "
+            )
+            .replace(
+                /\s+/g,
+                " "
             )
             .trim();
 
 
-    /*
-       Exemplos:
-
-       1.250,50
-       1250,50
-       R$ 1.250
-       500 kg
-    */
-
-
-    if (
-        text.includes(",") &&
-        text.includes(".")
-    ) {
-
-        text =
-            text.replace(
-                /\./g,
-                ""
-            );
-
-        text =
-            text.replace(
-                ",",
-                "."
-            );
-
-    } else if (
-        text.includes(",")
-    ) {
-
-        text =
-            text.replace(
-                ",",
-                "."
-            );
-
-    }
-
-
-    const match =
-        text.match(
-            /-?\d+(?:\.\d+)?/
+    const numericMatches =
+        normalized.match(
+            /[+-]?(?:\d+(?:[.,]\d+)?|[.,]\d+)/g
         );
 
 
-    if (!match) {
+    if (!numericMatches) {
         return null;
     }
 
 
-    const number =
-        Number(
-            match[0]
+    const numbers =
+        numericMatches.map(
+            value =>
+                Number(
+                    value.replace(
+                        ",",
+                        "."
+                    )
+                )
         );
+
+
+    if (
+        numbers.length > 1 &&
+        numbers.every(
+            number =>
+                Number.isFinite(number)
+        )
+    ) {
+
+        return (
+            numbers.reduce(
+                (sum, number) =>
+                    sum + number,
+                0
+            ) /
+            numbers.length
+        );
+
+    }
+
+
+    const number =
+        numbers[0];
 
 
     return Number.isFinite(number)
