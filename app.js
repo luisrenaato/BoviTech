@@ -290,7 +290,10 @@ async function loadData() {
                     allHeaders.forEach(
                         (header, index) => {
 
-                            if (isEmailColumn(header)) {
+                            if (
+                                isEmailColumn(header) ||
+                                isIgnoredColumn(header)
+                            ) {
                                 return;
                             }
 
@@ -309,7 +312,8 @@ async function loadData() {
         headers =
             allHeaders.filter(
                 header =>
-                    !isEmailColumn(header)
+                    !isEmailColumn(header) &&
+                    !isIgnoredColumn(header)
             );
 
 
@@ -947,9 +951,9 @@ function setupViewToggles() {
 
                 if (column) {
 
-                    renderHistogram(
-                        getNumericValues(column)
-                    );
+                    if (getNumericColumns().includes(column)) {
+                        renderHistogram(getNumericValues(column), column);
+                    }
 
                 }
 
@@ -2202,28 +2206,20 @@ function rebuildStatisticsVariables() {
         );
 
 
-    const numeric =
-        getNumericColumns();
-
+    // O seletor do histograma deve listar todas as perguntas
+    // disponíveis (como o filtro), não apenas as numéricas.
+    const availableColumns = headers.filter(
+        column => column && !isTimestamp(column) && !isIgnoredColumn(column)
+    );
 
     select.innerHTML = "";
 
-
-    if (!numeric.length) {
-
-        select.innerHTML =
-            `
-                <option>
-                    Nenhuma variável numérica encontrada
-                </option>
-            `;
-
+    if (!availableColumns.length) {
+        select.innerHTML = '<option value="">Nenhuma pergunta encontrada</option>';
         return;
-
     }
 
-
-    numeric.forEach(
+    availableColumns.forEach(
         column => {
 
             const option =
@@ -2270,18 +2266,32 @@ function updateStatistics() {
     }
 
 
-    const values =
-        getNumericValues(
-            column
-        );
+    const values = getNumericValues(column);
+    const numericColumn = getNumericColumns().includes(column);
 
-
-    if (!values.length) {
-
+    // Para perguntas categóricas/textuais, mostrar frequências no gráfico;
+    // estatísticas numéricas só são calculadas quando a variável é numérica.
+    if (!numericColumn) {
+        const frequencies = new Map();
+        filteredData.forEach(row => {
+            const answer = String(row[column] ?? '').trim();
+            if (answer) frequencies.set(answer, (frequencies.get(answer) || 0) + 1);
+        });
+        const entries = [...frequencies.entries()].sort((a, b) => b[1] - a[1]).slice(0, 30);
+        renderChartByMode({
+            container: document.getElementById('histogramChart').parentElement,
+            canvasId: 'histogramChart',
+            mode: getChartMode('histogram'),
+            labels: entries.map(entry => shortenValue(entry[0])),
+            data: entries.map(entry => entry[1]),
+            total: entries.reduce((sum, entry) => sum + entry[1], 0),
+            datasetLabel: 'Respostas',
+            tooltipUnit: 'respostas'
+        });
         return;
-
     }
 
+    if (!values.length) return;
 
     const statistics =
         calculateStatistics(
@@ -2295,7 +2305,8 @@ function updateStatistics() {
 
 
     renderHistogram(
-        values
+        values,
+        column
     );
 
 
@@ -2574,7 +2585,8 @@ function renderStatisticsCards(
 ========================================================= */
 
 function renderHistogram(
-    values
+    values,
+    column = ""
 ) {
 
     const canvas =
@@ -2608,8 +2620,21 @@ function renderHistogram(
     let labels;
     let counts;
 
-
-    if (min === max) {
+    // A pergunta "Quantidade de gado" usa exatamente as mesmas
+    // faixas definidas na visualização categórica, evitando que o
+    // histograma agrupe os mesmos dados em intervalos automáticos.
+    const normalizedColumn = normalize(column);
+    if (normalizedColumn.includes("quantidade de gado")) {
+        const ranges = [
+            { label: "10–50", min: 10, max: 50 },
+            { label: "51–100", min: 51, max: 100 },
+            { label: "101–200", min: 101, max: 200 },
+            { label: "201–500", min: 201, max: 500 },
+            { label: "501+", min: 501, max: Infinity }
+        ];
+        labels = ranges.map(range => range.label);
+        counts = ranges.map(range => values.filter(value => value >= range.min && value <= range.max).length);
+    } else if (min === max) {
 
         labels = [String(min)];
         counts = [values.length];
@@ -3373,6 +3398,13 @@ function isTimestamp(
    Google Forms ("Endereço de e-mail"). Ela é descartada em
    loadData() para nunca aparecer no dashboard.
 */
+
+function isIgnoredColumn(header) {
+    // Oculta a coluna auxiliar identificada como "31" no Forms/CSV.
+    const text = normalize(header);
+    return /^(coluna\s*)?31[.)]?$/i.test(text);
+}
+
 
 function isEmailColumn(
     header
