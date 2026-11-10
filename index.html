@@ -51,6 +51,19 @@
             ● Conectando...
         </div>
 
+        <button id="refreshButton" class="refresh-button" type="button">
+            <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"
+                      fill="none" stroke="currentColor" stroke-width="2.2"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="refresh-label">Atualizar dados</span>
+        </button>
+
+        <div class="refresh-note">
+            Os dados não se atualizam sozinhos. Clique para buscar as respostas mais recentes.
+        </div>
+
         <div class="side-title">
             NAVEGAÇÃO
         </div>
@@ -90,6 +103,8 @@
         <select id="filterColumn">
             <option value="">Todos os dados</option>
         </select>
+
+        <div id="filterColumnHint" class="select-hint" hidden></div>
 
         <label for="filterValue">
             Valor
@@ -193,15 +208,15 @@
                     <div class="card-heading" id="overviewChartHeading">
                         <div>
                             <h3>Distribuição das categorias</h3>
-                            <p>
+                            <p id="overviewQuestion" class="question-text">
                                 Colunas verticais para comparação.
                             </p>
+                            <span id="overviewN"></span>
                         </div>
                     </div>
 
                     <div class="chart-container">
                         <canvas id="mainCategoryChart"></canvas>
-                        <div class="inline-boxplot"></div>
                     </div>
 
                 </div>
@@ -355,16 +370,16 @@
 
                         <div>
                             <h3>Histograma</h3>
-                            <p>
+                            <p id="histogramQuestion" class="question-text">
                                 Distribuição dos valores.
                             </p>
+                            <span id="histogramN"></span>
                         </div>
 
                     </div>
 
                     <div class="chart-container">
                         <canvas id="histogramChart"></canvas>
-                        <div class="inline-boxplot"></div>
                     </div>
 
                 </div>
@@ -375,33 +390,14 @@
                     <div class="card-heading">
 
                         <div>
-                            <h3>Boxplot</h3>
-                            <p>
-                                Mínimo, Q1, mediana, Q3,
-                                máximo e outliers.
-                            </p>
+                            <h3>Tabela de frequência</h3>
                         </div>
 
                     </div>
 
-                    <div id="boxplot" class="boxplot-wrapper"></div>
+                    <div id="frequencyTable"></div>
 
                 </div>
-
-            </div>
-
-
-            <div class="paper-card">
-
-                <div class="card-heading">
-
-                    <div>
-                        <h3>Tabela de frequência</h3>
-                    </div>
-
-                </div>
-
-                <div id="frequencyTable"></div>
 
             </div>
 
@@ -424,7 +420,7 @@
 
 
         <footer>
-            BoviTech · Dados atualizados automaticamente
+            BoviTech · Dados atualizados manualmente pelo botão “Atualizar dados”
         </footer>
 
     </main>
