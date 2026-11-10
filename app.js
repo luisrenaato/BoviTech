@@ -25,13 +25,12 @@ const SHEET_NAME =
 
 
 /*
-   Atualização automática.
+   Atualização MANUAL.
 
-   30 segundos = 30000 ms
+   Os dados são carregados uma vez ao abrir a página e só são
+   atualizados quando a pessoa clica em "Atualizar dados"
+   (menu lateral). Não existe mais atualização automática.
 */
-
-const REFRESH_TIME =
-    30000;
 
 
 /* =========================================================
@@ -68,6 +67,8 @@ let currentFilterColumn = "";
 
 let currentFilterValue = "";
 
+let isLoading = false;
+
 
 /*
    Modo de visualização de cada gráfico.
@@ -85,8 +86,7 @@ const CHART_VIEW_LABELS = {
     pie: "Setores",
     points: "Pontos",
     line: "Linhas",
-    ogive: "Ogiva",
-    boxplot: "Boxplot"
+    ogive: "Ogiva"
 };
 
 
@@ -106,12 +106,9 @@ document.addEventListener(
 
         setupViewToggles();
 
-        await loadData();
+        setupRefreshButton();
 
-        setInterval(
-            loadData,
-            REFRESH_TIME
-        );
+        await loadData();
 
     }
 );
@@ -215,7 +212,102 @@ function renderCurrentPage() {
    CARREGAMENTO
 ========================================================= */
 
+function setupRefreshButton() {
+
+    const button =
+        document.getElementById(
+            "refreshButton"
+        );
+
+    if (!button) {
+        return;
+    }
+
+    button.addEventListener(
+        "click",
+        loadData
+    );
+
+}
+
+
+function setRefreshButtonState(
+    loading
+) {
+
+    const button =
+        document.getElementById(
+            "refreshButton"
+        );
+
+    if (!button) {
+        return;
+    }
+
+    button.disabled = loading;
+
+    button.classList.toggle(
+        "is-loading",
+        loading
+    );
+
+    const label =
+        button.querySelector(
+            ".refresh-label"
+        );
+
+    if (label) {
+        label.textContent =
+            loading
+                ? "Atualizando..."
+                : "Atualizar dados";
+    }
+
+}
+
+
+function showLoadingScreen() {
+
+    const loading =
+        document.getElementById(
+            "loadingScreen"
+        );
+
+    loading.classList.remove(
+        "hidden"
+    );
+
+    loading.innerHTML = `
+
+        <div class="loader"></div>
+
+        <h2>Carregando dados...</h2>
+
+        <p>
+            Buscando respostas do Google Sheets.
+        </p>
+
+    `;
+
+}
+
+
 async function loadData() {
+
+    // Evita cliques repetidos enquanto uma atualização está em andamento.
+    if (isLoading) {
+        return;
+    }
+
+    isLoading = true;
+
+    setRefreshButtonState(true);
+
+    // Só mostra a tela cheia de "carregando" na primeira carga;
+    // nas atualizações manuais os gráficos continuam visíveis.
+    if (!allData.length) {
+        showLoadingScreen();
+    }
 
     setConnection(
         "loading",
@@ -317,27 +409,25 @@ async function loadData() {
             );
 
 
-        filteredData =
-            [...allData];
-
-
         rebuildFilters();
 
-        rebuildStatisticsVariables();
+        // Mantém o filtro escolhido (se ele ainda existir nos dados novos).
+        filteredData =
+            computeFilteredData();
 
         renderEverything();
 
 
         setConnection(
             "online",
-            "● Dados online"
+            "● Dados carregados"
         );
 
 
         document.getElementById(
             "lastUpdate"
         ).textContent =
-            new Date().toLocaleTimeString(
+            new Date().toLocaleString(
                 "pt-BR"
             );
 
@@ -353,9 +443,27 @@ async function loadData() {
         );
 
 
-        showError(
-            error.message
-        );
+        if (allData.length) {
+
+            // Já existem dados na tela: mantém tudo visível e só avisa.
+            setConnection(
+                "offline",
+                "● Falha ao atualizar — exibindo os dados anteriores"
+            );
+
+        } else {
+
+            showError(
+                error.message
+            );
+
+        }
+
+    } finally {
+
+        isLoading = false;
+
+        setRefreshButtonState(false);
 
     }
 
@@ -566,6 +674,8 @@ function setupFilters() {
 
             populateFilterValues();
 
+            updateFilterHint();
+
             applyFilters();
 
         }
@@ -639,6 +749,9 @@ function rebuildFilters() {
             option.textContent =
                 shortenHeader(header);
 
+            option.title =
+                header;
+
 
             select.appendChild(
                 option
@@ -659,6 +772,33 @@ function rebuildFilters() {
 
 
     populateFilterValues();
+
+    updateFilterHint();
+
+}
+
+
+/*
+   O <select> da barra lateral é estreito e corta o texto da
+   pergunta. Mostramos a pergunta completa logo abaixo dele.
+*/
+
+function updateFilterHint() {
+
+    const hint =
+        document.getElementById(
+            "filterColumnHint"
+        );
+
+    if (!hint) {
+        return;
+    }
+
+    hint.textContent =
+        currentFilterColumn || "";
+
+    hint.hidden =
+        !currentFilterColumn;
 
 }
 
@@ -732,29 +872,33 @@ function populateFilterValues() {
 }
 
 
-function applyFilters() {
+function computeFilteredData() {
 
     if (
         !currentFilterColumn ||
-        !currentFilterValue
+        !currentFilterValue ||
+        !headers.includes(currentFilterColumn)
     ) {
 
-        filteredData =
-            [...allData];
-
-    } else {
-
-        filteredData =
-            allData.filter(
-                row =>
-                    cleanValue(
-                        row[currentFilterColumn]
-                    ) ===
-                    currentFilterValue
-            );
+        return [...allData];
 
     }
 
+    return allData.filter(
+        row =>
+            cleanValue(
+                row[currentFilterColumn]
+            ) ===
+            currentFilterValue
+    );
+
+}
+
+
+function applyFilters() {
+
+    filteredData =
+        computeFilteredData();
 
     renderEverything();
 
@@ -779,6 +923,9 @@ function clearFilters() {
         '<option value="">Todos</option>';
 
 
+    updateFilterHint();
+
+
     filteredData =
         [...allData];
 
@@ -790,7 +937,7 @@ function clearFilters() {
 
 /* =========================================================
    MODO DE VISUALIZAÇÃO DOS GRÁFICOS
-   (Barras / Setores / Pontos / Linhas / Ogiva / Boxplot)
+   (Barras / Setores / Pontos / Linhas / Ogiva)
 ========================================================= */
 
 function getChartMode(key) {
@@ -802,24 +949,11 @@ function getChartMode(key) {
 
 function buildViewToggle(key) {
 
-    const canUseBoxplot =
-        key &&
-        getNumericColumns().includes(key);
-
-    if (!canUseBoxplot) {
-        chartViewModes[key] = "bar";
-    }
-
     const current =
-        canUseBoxplot
-            ? getChartMode(key)
-            : "bar";
+        getChartMode(key);
 
     const buttons =
         Object.keys(CHART_VIEW_LABELS)
-            .filter(type =>
-                type !== "boxplot" || canUseBoxplot
-            )
             .map(type => {
 
                 const active =
@@ -1038,6 +1172,8 @@ function buildChartDataset(
 
     if (mode === "points") {
 
+        // Gráfico de pontos no estilo "pirulito": ponto grande com
+        // contorno branco e uma haste fina até a linha de base.
         return {
             type: "line",
             label,
@@ -1045,9 +1181,11 @@ function buildChartDataset(
             showLine: false,
             borderWidth: 0,
             pointBackgroundColor: forest,
-            pointBorderColor: forest,
-            pointRadius: 6,
-            pointHoverRadius: 8
+            pointBorderColor: "#FFFFFF",
+            pointBorderWidth: 2,
+            pointRadius: 8,
+            pointHoverRadius: 10,
+            pointHoverBorderWidth: 3
         };
 
     }
@@ -1112,6 +1250,68 @@ function buildOgiveDataset(data, label) {
 
 
 /*
+   Plugin que desenha a haste (linha fina) de cada ponto até o
+   eixo zero, deixando o gráfico de pontos mais legível.
+*/
+
+const POINT_STEMS_PLUGIN = {
+
+    id: "pointStems",
+
+    beforeDatasetsDraw(chart) {
+
+        const meta =
+            chart.getDatasetMeta(0);
+
+        const yScale =
+            chart.scales.y;
+
+        if (!meta || !yScale) {
+            return;
+        }
+
+        const base =
+            yScale.getPixelForValue(0);
+
+        const ctx =
+            chart.ctx;
+
+        ctx.save();
+
+        ctx.strokeStyle =
+            "rgba(78,107,74,.45)";
+
+        ctx.lineWidth = 2;
+
+        ctx.lineCap = "round";
+
+        meta.data.forEach(point => {
+
+            if (
+                !point ||
+                point.skip
+            ) {
+                return;
+            }
+
+            ctx.beginPath();
+
+            ctx.moveTo(point.x, base);
+
+            ctx.lineTo(point.x, point.y);
+
+            ctx.stroke();
+
+        });
+
+        ctx.restore();
+
+    }
+
+};
+
+
+/*
    Config completa do Chart.js para os modos cartesianos
    (Barras / Linhas / Pontos / Ogiva) — todos compartilham
    o mesmo eixo de categorias e o mesmo tooltip.
@@ -1121,8 +1321,26 @@ function buildCartesianConfig(
     labels,
     dataset,
     total,
-    tooltipUnit
+    tooltipUnit,
+    extra = {}
 ) {
+
+    const mode =
+        extra.mode || "bar";
+
+    const fullLabels =
+        extra.fullLabels || null;
+
+    // Em gráficos de linha/pontos/ogiva o Chart.js, por padrão,
+    // encosta o primeiro ponto no eixo Y (margem 0). "offset"
+    // reserva meia categoria de folga nas duas pontas.
+    const isLineType =
+        dataset.type === "line";
+
+    const chartPlugins =
+        mode === "points"
+            ? [ChartDataLabels, POINT_STEMS_PLUGIN]
+            : [ChartDataLabels];
 
     return {
 
@@ -1133,7 +1351,7 @@ function buildCartesianConfig(
             datasets: [dataset]
         },
 
-        plugins: [ChartDataLabels],
+        plugins: chartPlugins,
 
         options: {
 
@@ -1158,6 +1376,24 @@ function buildCartesianConfig(
 
                 tooltip: {
                     callbacks: {
+                        // Mostra o rótulo completo (sem "...") no tooltip.
+                        title: items => {
+
+                            if (!items.length) {
+                                return "";
+                            }
+
+                            const index =
+                                items[0].dataIndex;
+
+                            return (
+                                fullLabels &&
+                                fullLabels[index] !== undefined
+                            )
+                                ? fullLabels[index]
+                                : items[0].label;
+
+                        },
                         label: context => {
 
                             const value =
@@ -1189,6 +1425,7 @@ function buildCartesianConfig(
                 datalabels: {
                     anchor: "end",
                     align: "top",
+                    offset: mode === "points" ? 6 : 4,
                     color: "#3E2E22",
                     font: {
                         weight: "bold",
@@ -1202,6 +1439,7 @@ function buildCartesianConfig(
             scales: {
 
                 x: {
+                    offset: true,
                     grid: {
                         display: false
                     },
@@ -1215,6 +1453,7 @@ function buildCartesianConfig(
 
                 y: {
                     beginAtZero: true,
+                    grace: isLineType ? "12%" : 0,
                     ticks: {
                         precision: 0,
                         color: "#756C5E"
@@ -1344,141 +1583,13 @@ function buildPieConfig(
 }
 
 
-/*
-   Monta o HTML do boxplot a partir de {min,q1,median,q3,max,outliers}.
-   Reaproveitado tanto pela página de Estatística quanto pelo
-   modo "Boxplot" disponível em cada gráfico.
-*/
+function escapeHTML(value) {
 
-function buildBoxplotMarkup(stats, note = "") {
-
-    const noteHTML =
-        note
-            ? `<div class="boxplot-note">${note}</div>`
-            : "";
-
-
-    const range =
-        stats.max - stats.min;
-
-
-    if (range === 0) {
-
-        return `
-
-            <div class="boxplot-wrapper">
-
-                <div class="boxplot-axis"></div>
-
-                <div
-                    class="boxplot-box"
-                    style="left:50%;width:0;"
-                ></div>
-
-                <div
-                    class="boxplot-median"
-                    style="left:50%;"
-                ></div>
-
-                <div
-                    class="boxplot-label"
-                    style="left:50%;"
-                >
-                    ${formatNumber(stats.median)}
-                </div>
-
-            </div>
-
-            ${noteHTML}
-
-        `;
-
-    }
-
-
-    const position =
-        value =>
-            5 +
-            ((value - stats.min) / range) * 90;
-
-
-    const minPos = position(stats.min);
-    const q1Pos = position(stats.q1);
-    const medPos = position(stats.median);
-    const q3Pos = position(stats.q3);
-    const maxPos = position(stats.max);
-
-    const boxLeft = q1Pos;
-    const boxWidth = q3Pos - q1Pos;
-    const whiskerLeft = minPos;
-    const whiskerWidth = maxPos - minPos;
-
-
-    let outliersHTML = "";
-
-    stats.outliers.forEach(
-        value => {
-
-            outliersHTML += `
-                <div
-                    class="boxplot-outlier"
-                    style="left:${position(value)}%;"
-                    title="Outlier: ${formatNumber(value)}"
-                ></div>
-            `;
-
-        }
-    );
-
-
-    return `
-
-        <div class="boxplot-wrapper">
-
-            <div class="boxplot-axis"></div>
-
-            <div
-                class="boxplot-line"
-                style="left:${whiskerLeft}%;width:${whiskerWidth}%;"
-            ></div>
-
-            <div class="boxplot-whisker" style="left:${minPos}%;"></div>
-            <div class="boxplot-whisker" style="left:${maxPos}%;"></div>
-
-            <div
-                class="boxplot-box"
-                style="left:${boxLeft}%;width:${boxWidth}%;"
-            ></div>
-
-            <div class="boxplot-median" style="left:${medPos}%;"></div>
-
-            ${outliersHTML}
-
-            <div class="boxplot-label" style="left:${minPos}%;">
-                Min<br>${formatNumber(stats.min)}
-            </div>
-
-            <div class="boxplot-label" style="left:${q1Pos}%;">
-                Q1<br>${formatNumber(stats.q1)}
-            </div>
-
-            <div class="boxplot-label" style="left:${medPos}%;">
-                Med<br>${formatNumber(stats.median)}
-            </div>
-
-            <div class="boxplot-label" style="left:${q3Pos}%;">
-                Q3<br>${formatNumber(stats.q3)}
-            </div>
-
-            <div class="boxplot-label" style="left:${maxPos}%;">
-                Max<br>${formatNumber(stats.max)}
-            </div>
-
-        </div>
-
-        ${noteHTML}
-
-    `;
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
 
 }
 
@@ -1487,7 +1598,7 @@ function buildBoxplotMarkup(stats, note = "") {
    Despachante único: recebe {labels, data} de QUALQUER
    gráfico (categórico ou histograma) e desenha o modo
    escolhido — Barras, Setores, Pontos, Linhas, Ogiva ou
-   Boxplot — trocando entre <canvas> e o boxplot inline.
+   trocando o tipo de gráfico exibido no <canvas>.
 */
 
 function renderChartByMode({
@@ -1499,7 +1610,8 @@ function renderChartByMode({
     total,
     datasetLabel,
     tooltipUnit,
-    noGap = false
+    noGap = false,
+    fullLabels = null
 }) {
 
     const canvas =
@@ -1509,44 +1621,7 @@ function renderChartByMode({
         return;
     }
 
-    const boxDiv =
-        container.querySelector(".inline-boxplot");
-
-
     destroyChart(canvasId);
-
-
-    if (mode === "boxplot") {
-
-        canvas.classList.add("chart-hidden");
-        container.classList.add("boxplot-active");
-
-        if (boxDiv) {
-
-            boxDiv.classList.add("active");
-
-            const stats =
-                calculateStatistics(data);
-
-            boxDiv.innerHTML =
-                buildBoxplotMarkup(
-                    stats,
-                    "Resumo estatístico dos valores deste gráfico (mín, Q1, mediana, Q3, máx)."
-                );
-
-        }
-
-        return;
-
-    }
-
-
-    canvas.classList.remove("chart-hidden");
-    container.classList.remove("boxplot-active");
-
-    if (boxDiv) {
-        boxDiv.classList.remove("active");
-    }
 
 
     if (mode === "pie") {
@@ -1586,7 +1661,11 @@ function renderChartByMode({
                 labels,
                 dataset,
                 total,
-                tooltipUnit
+                tooltipUnit,
+                {
+                    mode,
+                    fullLabels
+                }
             )
         );
 
@@ -1689,6 +1768,99 @@ function sortChartEntries(entries) {
 
 
 /* =========================================================
+   TOTAL DE RESPONDENTES POR PERGUNTA
+========================================================= */
+
+/*
+   Quantas pessoas responderam a pergunta (célula não vazia),
+   considerando o filtro atualmente aplicado.
+*/
+
+function countAnswered(column) {
+
+    return filteredData.reduce(
+        (count, row) =>
+            cleanValue(row[column])
+                ? count + 1
+                : count,
+        0
+    );
+
+}
+
+
+function buildRespondentsBadge(column) {
+
+    const answered =
+        countAnswered(column);
+
+    const total =
+        filteredData.length;
+
+    const detail =
+        answered < total
+            ? "pessoas responderam (de " + total + ")"
+            : "pessoas responderam";
+
+    return (
+        '<div class="n-badge" title="' +
+        answered +
+        " de " +
+        total +
+        ' pessoas responderam esta pergunta">' +
+        "<strong>N = " +
+        answered +
+        "</strong>" +
+        "<span>" +
+        detail +
+        "</span>" +
+        "</div>"
+    );
+
+}
+
+
+/*
+   Atualiza um cabeçalho que já existe no HTML (visão geral,
+   histograma): "badge" recebe o N e "question" recebe
+   o texto completo da pergunta.
+*/
+
+function updateHeadingInfo(
+    badgeId,
+    questionId,
+    column
+) {
+
+    const badge =
+        document.getElementById(badgeId);
+
+    if (badge) {
+
+        badge.innerHTML =
+            column
+                ? buildRespondentsBadge(column)
+                : "";
+
+    }
+
+    const question =
+        document.getElementById(questionId);
+
+    if (question && column) {
+
+        question.textContent =
+            column;
+
+        question.title =
+            column;
+
+    }
+
+}
+
+
+/* =========================================================
    VISÃO GERAL
 ========================================================= */
 
@@ -1752,6 +1924,12 @@ function renderOverview() {
             "overview_main"
         );
 
+        updateHeadingInfo(
+            "overviewN",
+            "overviewQuestion",
+            categoryColumn
+        );
+
     }
 
 
@@ -1793,11 +1971,14 @@ function renderSummary() {
                         <div class="summary-item">
 
                             <span>
-                                ${shortenHeader(column)}
+                                ${escapeHTML(shortenHeader(column))}
+                                <small class="summary-n">
+                                    ${countAnswered(column)} de ${filteredData.length} responderam
+                                </small>
                             </span>
 
                             <strong>
-                                ${getMode(column)}
+                                ${escapeHTML(getMode(column))}
                             </strong>
 
                         </div>
@@ -1979,13 +2160,18 @@ function renderCategoryPage(
 
                                 <div>
 
-                                    <h3>
-                                        ${shortenHeader(column)}
+                                    <h3
+                                        class="question-title"
+                                        title="${escapeHTML(column)}"
+                                    >
+                                        ${escapeHTML(shortenHeader(column))}
                                     </h3>
 
                                     <p>
                                         Comparação das respostas
                                     </p>
+
+                                    ${buildRespondentsBadge(column)}
 
                                 </div>
 
@@ -1999,8 +2185,6 @@ function renderCategoryPage(
                                     id="${id}"
                                 ></canvas>
 
-                                <div class="inline-boxplot"></div>
-
                             </div>
 
                         </div>
@@ -2010,6 +2194,11 @@ function renderCategoryPage(
                 }
             )
             .join("");
+
+
+    // Os canvases antigos foram descartados: libera os gráficos
+    // que ficaram presos a eles.
+    pruneCharts();
 
 
     columns
@@ -2115,6 +2304,10 @@ function renderVerticalChart(
 
     if (!entries.length) {
 
+        // Nenhuma resposta (ex.: filtro sem resultados): remove o
+        // gráfico antigo para não mostrar dados desatualizados.
+        destroyChart(canvasId);
+
         return;
 
     }
@@ -2154,27 +2347,21 @@ function renderVerticalChart(
             viewKey
         );
 
-    const boxplotData =
-        mode === "boxplot"
-            ? getNumericValues(column)
-            : data;
-
 
     renderChartByMode({
         container,
         canvasId,
         mode,
-        labels:
-            mode === "boxplot"
-                ? boxplotData
-                : labels,
-        data: boxplotData,
-        total:
-            mode === "boxplot"
-                ? boxplotData.length
-                : total,
+        labels,
+        data,
+        total,
         datasetLabel: "Respostas",
-        tooltipUnit: "respostas"
+        tooltipUnit: "respostas",
+        fullLabels:
+            entries.map(
+                entry =>
+                    entry[0]
+            )
     });
 
 }
@@ -2198,6 +2385,31 @@ function setupStatistics() {
 }
 
 
+function clearNumericPanels(message) {
+
+    const html =
+        '<p class="panel-empty">' +
+        escapeHTML(message) +
+        "</p>";
+
+    [
+        "statistics",
+        "frequencyTable",
+        "descriptiveTable"
+    ].forEach(id => {
+
+        const element =
+            document.getElementById(id);
+
+        if (element) {
+            element.innerHTML = html;
+        }
+
+    });
+
+}
+
+
 function rebuildStatisticsVariables() {
 
     const select =
@@ -2211,6 +2423,11 @@ function rebuildStatisticsVariables() {
     const availableColumns = headers.filter(
         column => column && !isTimestamp(column) && !isIgnoredColumn(column)
     );
+
+    // Guarda a pergunta escolhida para não "voltar ao início"
+    // quando os dados são atualizados.
+    const previousSelection =
+        select.value;
 
     select.innerHTML = "";
 
@@ -2235,6 +2452,9 @@ function rebuildStatisticsVariables() {
             option.textContent =
                 shortenHeader(column);
 
+            option.title =
+                column;
+
 
             select.appendChild(
                 option
@@ -2242,6 +2462,17 @@ function rebuildStatisticsVariables() {
 
         }
     );
+
+
+    if (
+        previousSelection &&
+        availableColumns.includes(previousSelection)
+    ) {
+
+        select.value =
+            previousSelection;
+
+    }
 
 
     updateStatistics();
@@ -2269,9 +2500,19 @@ function updateStatistics() {
     const values = getNumericValues(column);
     const numericColumn = getNumericColumns().includes(column);
 
+    // Pergunta completa + total de respondentes nos cabeçalhos.
+    updateHeadingInfo("histogramN", "histogramQuestion", column);
+
     // Para perguntas categóricas/textuais, mostrar frequências no gráfico;
     // estatísticas numéricas só são calculadas quando a variável é numérica.
     if (!numericColumn) {
+
+        // Evita mostrar estatísticas da pergunta anterior.
+        clearNumericPanels(
+            "Esta pergunta não é numérica: o histograma mostra a frequência das respostas, " +
+            "e as medidas estatísticas só estão disponíveis para variáveis numéricas."
+        );
+
         const frequencies = new Map();
         filteredData.forEach(row => {
             const answer = String(row[column] ?? '').trim();
@@ -2286,12 +2527,23 @@ function updateStatistics() {
             data: entries.map(entry => entry[1]),
             total: entries.reduce((sum, entry) => sum + entry[1], 0),
             datasetLabel: 'Respostas',
-            tooltipUnit: 'respostas'
+            tooltipUnit: 'respostas',
+            fullLabels: entries.map(entry => entry[0])
         });
         return;
     }
 
-    if (!values.length) return;
+    if (!values.length) {
+
+        clearNumericPanels(
+            "Ainda não há valores numéricos para esta pergunta."
+        );
+
+        destroyChart("histogramChart");
+
+        return;
+
+    }
 
     const statistics =
         calculateStatistics(
@@ -2307,12 +2559,6 @@ function updateStatistics() {
     renderHistogram(
         values,
         column
-    );
-
-
-    renderBoxplot(
-        values,
-        statistics
     );
 
 
@@ -2729,34 +2975,6 @@ function renderHistogram(
         tooltipUnit: "respostas",
         noGap: true
     });
-
-}
-
-
-/* =========================================================
-   BOXPLOT
-========================================================= */
-
-function renderBoxplot(
-    values,
-    stats
-) {
-
-    const container =
-        document.getElementById(
-            "boxplot"
-        );
-
-
-    if (!container) {
-        return;
-    }
-
-
-    container.innerHTML =
-        buildBoxplotMarkup(
-            stats
-        );
 
 }
 
@@ -3438,27 +3656,17 @@ function normalize(
 }
 
 
+/*
+   As perguntas NÃO são mais cortadas com "...": o texto completo
+   é exibido e quebra em várias linhas quando necessário.
+   (A função continua existindo para manter os pontos de uso.)
+*/
+
 function shortenHeader(
-    text,
-    max = 60
+    text
 ) {
 
-    if (
-        text.length <= max
-    ) {
-
-        return text;
-
-    }
-
-
-    return (
-        text.substring(
-            0,
-            max - 3
-        ) +
-        "..."
-    );
+    return String(text ?? "");
 
 }
 
@@ -3532,6 +3740,25 @@ function destroyChart(
         delete charts[id];
 
     }
+
+}
+
+
+function pruneCharts() {
+
+    Object.keys(charts).forEach(
+        id => {
+
+            if (
+                !document.getElementById(id)
+            ) {
+
+                destroyChart(id);
+
+            }
+
+        }
+    );
 
 }
 
