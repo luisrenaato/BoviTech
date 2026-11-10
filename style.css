@@ -374,6 +374,129 @@ body {
 }
 
 
+/* ---------------------------------------------------
+   Botão "Atualizar dados" e dica da pergunta filtrada
+--------------------------------------------------- */
+
+.refresh-button {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 8px;
+
+    width: 100%;
+
+    margin-top: 12px;
+
+    padding: 11px 12px;
+
+    border: 0;
+
+    border-radius: 8px;
+
+    background: var(--sand);
+
+    color: var(--forest);
+
+    font-family: var(--font-brand);
+
+    font-size: 12px;
+
+    font-weight: 700;
+
+    letter-spacing: .02em;
+
+    cursor: pointer;
+
+    transition: background .15s ease, transform .15s ease;
+
+}
+
+
+.refresh-button:hover:not(:disabled) {
+
+    background: #FFFFFF;
+
+    transform: translateY(-1px);
+
+}
+
+
+.refresh-button:disabled {
+
+    opacity: .75;
+
+    cursor: wait;
+
+}
+
+
+.refresh-icon {
+
+    width: 16px;
+
+    height: 16px;
+
+    flex-shrink: 0;
+
+}
+
+
+.refresh-button.is-loading .refresh-icon {
+
+    animation: refresh-spin .8s linear infinite;
+
+}
+
+
+@keyframes refresh-spin {
+
+    to {
+        transform: rotate(360deg);
+    }
+
+}
+
+
+.refresh-note {
+
+    margin-top: 8px;
+
+    color: rgba(255,255,255,.5);
+
+    font-size: 10px;
+
+    line-height: 1.45;
+
+}
+
+
+.select-hint {
+
+    margin-top: 6px;
+
+    color: rgba(255,255,255,.75);
+
+    font-size: 10.5px;
+
+    line-height: 1.4;
+
+    overflow-wrap: anywhere;
+
+}
+
+
+.select-hint[hidden] {
+
+    display: none;
+
+}
+
+
 /* =========================================================
    MAIN
 ========================================================= */
@@ -791,6 +914,15 @@ main {
 }
 
 
+.card-heading > div:first-child {
+
+    flex: 1 1 240px;
+
+    min-width: 0;
+
+}
+
+
 .card-heading h3 {
 
     margin: 0;
@@ -804,6 +936,21 @@ main {
 }
 
 
+/* Pergunta completa (sem "..."): quebra em quantas linhas precisar. */
+
+.card-heading h3.question-title {
+
+    font-size: 15px;
+
+    line-height: 1.35;
+
+    white-space: normal;
+
+    overflow-wrap: anywhere;
+
+}
+
+
 .card-heading p {
 
     margin: 5px 0 0;
@@ -811,6 +958,79 @@ main {
     color: var(--muted);
 
     font-size: 11px;
+
+}
+
+
+.card-heading p.question-text {
+
+    font-size: 12px;
+
+    line-height: 1.4;
+
+    overflow-wrap: anywhere;
+
+}
+
+
+/* Total de pessoas que responderam a pergunta */
+
+.n-badge {
+
+    display: inline-flex;
+
+    flex-wrap: wrap;
+
+    align-items: center;
+
+    gap: 4px 8px;
+
+    margin-top: 9px;
+
+    padding: 4px 10px;
+
+    border-radius: 999px;
+
+    background: rgba(78,107,74,.12);
+
+    color: var(--forest);
+
+    font-size: 11px;
+
+}
+
+
+.n-badge strong {
+
+    font-family: var(--font-brand);
+
+    font-size: 11px;
+
+}
+
+
+.n-badge span {
+
+    color: var(--muted);
+
+}
+
+
+.panel-empty {
+
+    margin: 0;
+
+    padding: 16px;
+
+    border-radius: 8px;
+
+    background: var(--paper);
+
+    color: var(--muted);
+
+    font-size: 12px;
+
+    line-height: 1.5;
 
 }
 
@@ -835,53 +1055,6 @@ main {
     width: 100% !important;
 
     height: 100% !important;
-
-}
-
-
-.chart-container canvas.chart-hidden {
-
-    display: none;
-
-}
-
-
-.inline-boxplot {
-
-    display: none;
-
-    width: 100%;
-
-}
-
-
-.inline-boxplot.active {
-
-    display: block;
-
-}
-
-
-.chart-container.boxplot-active {
-
-    height: auto;
-
-    min-height: 380px;
-
-}
-
-
-.boxplot-note {
-
-    margin-top: 10px;
-
-    padding: 0 25px;
-
-    color: var(--muted);
-
-    font-size: 11px;
-
-    font-style: italic;
 
 }
 
@@ -922,6 +1095,23 @@ main {
 .summary-item span {
 
     font-size: 11px;
+
+    line-height: 1.4;
+
+    overflow-wrap: anywhere;
+
+}
+
+
+.summary-item .summary-n {
+
+    display: block;
+
+    margin-top: 3px;
+
+    color: var(--muted);
+
+    font-size: 10px;
 
 }
 
@@ -1024,130 +1214,10 @@ main {
 }
 
 
-/* =========================================================
-   BOXPLOT
-========================================================= */
 
-.boxplot-wrapper {
 
-    position: relative;
 
-    min-height: 320px;
 
-    padding: 30px 25px;
-
-}
-
-
-.boxplot-axis {
-
-    position: absolute;
-
-    left: 30px;
-
-    right: 30px;
-
-    top: 160px;
-
-    height: 3px;
-
-    background: var(--coffee);
-
-}
-
-
-.boxplot-whisker {
-
-    position: absolute;
-
-    top: 145px;
-
-    height: 32px;
-
-    border-left: 2px solid var(--coffee);
-
-}
-
-
-.boxplot-line {
-
-    position: absolute;
-
-    top: 159px;
-
-    height: 4px;
-
-    background: var(--coffee);
-
-}
-
-
-.boxplot-box {
-
-    position: absolute;
-
-    top: 125px;
-
-    height: 70px;
-
-    border: 3px solid var(--green-dark);
-
-    border-radius: 5px;
-
-    background: rgba(78,107,74,.28);
-
-}
-
-
-.boxplot-median {
-
-    position: absolute;
-
-    top: 120px;
-
-    height: 80px;
-
-    width: 4px;
-
-    background: var(--coffee-dark);
-
-}
-
-
-.boxplot-outlier {
-
-    position: absolute;
-
-    top: 153px;
-
-    width: 13px;
-
-    height: 13px;
-
-    border-radius: 50%;
-
-    background: var(--coffee-dark);
-
-    transform: translateX(-50%);
-
-}
-
-
-.boxplot-label {
-
-    position: absolute;
-
-    top: 215px;
-
-    transform: translateX(-50%);
-
-    color: var(--muted);
-
-    font-size: 10px;
-
-    white-space: nowrap;
-
-}
 
 
 /* =========================================================
