@@ -476,9 +476,9 @@ body {
 
     display: block;
 
-    width: 132px;
+    width: 120px;
 
-    height: 44px;
+    height: 40px;
 
     padding: 0;
 
@@ -528,7 +528,7 @@ body {
 
     color: #FFFFFF;
 
-    font-size: 13px;
+    font-size: 12px;
 
     font-weight: 800;
 
@@ -543,14 +543,14 @@ body {
 
 .theme-switch-label.is-light {
 
-    right: 16px;
+    right: 14px;
 
 }
 
 
 .theme-switch-label.is-dark {
 
-    left: 16px;
+    left: 14px;
 
     opacity: 0;
 
@@ -578,8 +578,8 @@ body {
     top: 4px;
     left: 4px;
 
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
 
     border-radius: 50%;
 
@@ -594,7 +594,7 @@ body {
 
 .theme-switch[aria-checked="true"] .theme-switch-knob {
 
-    transform: translateX(88px);
+    transform: translateX(80px);
 
 }
 

@@ -125,12 +125,12 @@ function chartColors() {
             ogive: "#D9C8AA",
             ogiveFill: "rgba(217,200,170,.15)",
             ogivePoint: "#EDE7D9",
-            label: "#EDE7D9",
-            tick: "#CDBFA6",
-            tickY: "#A39B8B",
+            label: "#FFFFFF",
+            tick: "#F5F0E5",
+            tickY: "#D9C8AA",
             grid: "rgba(237,231,217,.10)",
             pieBorder: "#18241E",
-            legend: "#CDBFA6",
+            legend: "#F5F0E5",
             palette: [
                 "#7FA678", "#A9CBA0", "#D9C8AA", "#9C8F7D",
                 "#5E8557", "#C9B38A", "#6F9A8A", "#B7AA92",
@@ -151,12 +151,12 @@ function chartColors() {
         ogive: "#5B4636",
         ogiveFill: "rgba(91,70,54,.15)",
         ogivePoint: "#3E2E22",
-        label: "#3E2E22",
-        tick: "#5B4636",
-        tickY: "#756C5E",
+        label: "#0F3D2E",
+        tick: "#4E6B4A",
+        tickY: "#5B4636",
         grid: "rgba(91,70,54,.12)",
         pieBorder: "#FFFFFF",
-        legend: "#5B4636",
+        legend: "#4E6B4A",
         palette: null
     };
 
