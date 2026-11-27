@@ -234,22 +234,30 @@ function setupThemeSwitch() {
    sob a barra/ponto, em vez de inclinar o texto.
 */
 
-function wrapTickLabel(text, chartWidth, count) {
+function wrapTickLabel(text, chartWidth, count, options = {}) {
 
     const slot =
         Math.max(
-            60,
+            options.minSlot || 60,
             (chartWidth - 50) / Math.max(count, 1)
         );
 
-    // fonte de 11px ≈ 6,2px por caractere
+    const charWidth =
+        options.charWidth || 6.2;
+
     const maxChars =
         Math.max(
-            8,
-            Math.floor((slot - 12) / 6.2)
+            options.minChars || 8,
+            Math.floor(
+                (slot - (options.slotPadding || 12)) /
+                charWidth
+            )
         );
 
-    const maxLines = 5;
+    const maxLines =
+        options.maxLines === undefined
+            ? 5
+            : options.maxLines;
 
     let lines = [];
 
@@ -288,7 +296,7 @@ function wrapTickLabel(text, chartWidth, count) {
         lines.push(current);
     }
 
-    if (lines.length > maxLines) {
+    if (maxLines && lines.length > maxLines) {
 
         lines = lines.slice(0, maxLines);
 
@@ -312,6 +320,8 @@ document.addEventListener(
 
         setupNavigation();
 
+        setupScrollHint();
+
         setupFilters();
 
         setupStatistics();
@@ -326,6 +336,84 @@ document.addEventListener(
 
     }
 );
+
+
+function setupScrollHint() {
+
+    const scrollHint =
+        document.getElementById("scrollHint");
+
+    if (!scrollHint) {
+        return;
+    }
+
+
+    const updateVisibility = () => {
+
+        const documentHeight =
+            document.documentElement.scrollHeight;
+
+        const maximumScroll =
+            documentHeight - window.innerHeight;
+
+        const hasMoreContent =
+            maximumScroll > 24 &&
+            window.scrollY < maximumScroll - 24;
+
+        scrollHint.classList.toggle(
+            "is-visible",
+            hasMoreContent
+        );
+
+    };
+
+
+    scrollHint.addEventListener(
+        "click",
+        () => {
+
+            const prefersReducedMotion =
+                window.matchMedia(
+                    "(prefers-reduced-motion: reduce)"
+                ).matches;
+
+            window.scrollBy({
+                top: Math.round(window.innerHeight * .72),
+                behavior: prefersReducedMotion ? "auto" : "smooth"
+            });
+
+        }
+    );
+
+    window.addEventListener(
+        "scroll",
+        updateVisibility,
+        { passive: true }
+    );
+
+    window.addEventListener(
+        "resize",
+        updateVisibility
+    );
+
+    document
+        .querySelectorAll(".nav-button")
+        .forEach(
+            button =>
+                button.addEventListener(
+                    "click",
+                    () => requestAnimationFrame(updateVisibility)
+                )
+        );
+
+    if ("ResizeObserver" in window) {
+        new ResizeObserver(updateVisibility)
+            .observe(document.querySelector("main"));
+    }
+
+    updateVisibility();
+
+}
 
 
 /* =========================================================
@@ -493,13 +581,13 @@ function showLoadingScreen() {
 
     loading.innerHTML = `
 
-        <div class="loader"></div>
+        <div class="loader-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 200 179" focusable="false">
+                <use href="#bovitechCowMark" fill="currentColor"/>
+            </svg>
+        </div>
 
         <h2>Carregando dados...</h2>
-
-        <p>
-            Buscando respostas do Google Sheets.
-        </p>
 
     `;
 
@@ -1668,7 +1756,13 @@ function buildCartesianConfig(
                     },
                     ticks: {
                         color: colors.tick,
-                        font: { size: 11 },
+                        font: {
+                            size: extra.tickLabelFormatter
+                                ? 10
+                                : extra.denseCategoryLabels
+                                    ? 10
+                                    : 11
+                        },
                         // Sem inclinação: o texto quebra em linhas e
                         // fica centralizado sob a barra / ponto.
                         autoSkip: false,
@@ -1677,10 +1771,26 @@ function buildCartesianConfig(
                         align: "center",
                         callback: function(value) {
 
+                            if (extra.tickLabelFormatter) {
+                                return extra.tickLabelFormatter(
+                                    this.getLabelForValue(value),
+                                    this.width / labels.length
+                                );
+                            }
+
                             return wrapTickLabel(
                                 this.getLabelForValue(value),
                                 this.chart.width,
-                                labels.length
+                                labels.length,
+                                extra.denseCategoryLabels
+                                    ? {
+                                        minSlot: 28,
+                                        minChars: 4,
+                                        charWidth: 4.5,
+                                        slotPadding: 8,
+                                        maxLines: null
+                                    }
+                                    : {}
                             );
 
                         }
@@ -1850,7 +1960,8 @@ function renderChartByMode({
     datasetLabel,
     tooltipUnit,
     noGap = false,
-    fullLabels = null
+    fullLabels = null,
+    tickLabelFormatter = null
 }) {
 
     const canvas =
@@ -1908,7 +2019,11 @@ function renderChartByMode({
                 tooltipUnit,
                 {
                     mode,
-                    fullLabels
+                    fullLabels,
+                    denseCategoryLabels:
+                        canvasId === "mainCategoryChart" ||
+                        Boolean(tickLabelFormatter),
+                    tickLabelFormatter
                 }
             )
         );
@@ -2591,6 +2706,9 @@ function renderVerticalChart(
             viewKey
         );
 
+    const isBreedChart =
+        normalize(column).includes("raca");
+
 
     renderChartByMode({
         container,
@@ -2605,8 +2723,76 @@ function renderVerticalChart(
             entries.map(
                 entry =>
                     entry[0]
-            )
+            ),
+        tickLabelFormatter:
+            isBreedChart
+                ? formatCompactBreedTickLabel
+                : null
     });
+
+}
+
+
+function formatCompactBreedTickLabel(label, slotWidth) {
+
+    const abbreviations = {
+        nelore: "Nel.",
+        outro: "Out.",
+        holandes: "Hol.",
+        leiteiro: "Lei.",
+        angus: "Ang.",
+        brahman: "Brah."
+    };
+
+    const maxWidth =
+        Math.max(16, slotWidth - 6);
+
+    const lines = [];
+
+    String(label ?? "")
+        .split(/\s*,\s*/)
+        .forEach(
+            breed => {
+
+                let line = "";
+
+                breed
+                    .split(/\s+/)
+                    .forEach(
+                        word => {
+
+                            const compactWord =
+                                word.length * 5 > maxWidth
+                                    ? abbreviations[normalize(word)] ||
+                                        word.slice(0, 3) + "."
+                                    : word;
+
+                            const candidate =
+                                line
+                                    ? line + " " + compactWord
+                                    : compactWord;
+
+                            if (
+                                line &&
+                                candidate.length * 5 > maxWidth
+                            ) {
+                                lines.push(line);
+                                line = compactWord;
+                            } else {
+                                line = candidate;
+                            }
+
+                        }
+                    );
+
+                if (line) {
+                    lines.push(line);
+                }
+
+            }
+        );
+
+    return lines;
 
 }
 

@@ -226,7 +226,7 @@
 
             <div class="chart-grid">
 
-                <div class="paper-card large-card">
+                <div class="paper-card large-card overview-category-card">
 
                     <div class="card-heading" id="overviewChartHeading">
                         <div>
@@ -238,14 +238,14 @@
                         </div>
                     </div>
 
-                    <div class="chart-container">
+                    <div class="chart-container overview-category-chart">
                         <canvas id="mainCategoryChart"></canvas>
                     </div>
 
                 </div>
 
 
-                <div class="paper-card">
+                <div class="paper-card overview-summary-card">
 
                     <div class="card-heading">
                         <div>
@@ -256,7 +256,7 @@
                         </div>
                     </div>
 
-                    <div id="summaryList" class="summary-list"></div>
+                    <div id="summaryList" class="summary-list overview-summary-list"></div>
 
                 </div>
 
@@ -449,17 +449,28 @@
     </main>
 
 
-    <div id="loadingScreen" class="loading-screen">
+    <div id="loadingScreen" class="loading-screen"
+         role="status" aria-label="Carregando dados">
 
-        <div class="loader"></div>
+        <div class="loader-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 200 179" focusable="false">
+                <use href="#bovitechCowMark" fill="currentColor"/>
+            </svg>
+        </div>
 
         <h2>Carregando dados...</h2>
 
-        <p>
-            Buscando respostas do Google Sheets.
-        </p>
-
     </div>
+
+
+    <button id="scrollHint" class="scroll-hint" type="button"
+            aria-label="Rolar para baixo">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor"
+                  stroke-width="2.4" stroke-linecap="round"
+                  stroke-linejoin="round"/>
+        </svg>
+    </button>
 
 
     <script src="app.js"></script>
